@@ -1,163 +1,104 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>🚜 FleetManager — V3.2 (Dark UI)</title>
+import React from 'react'
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion"
+import { TrendingUp, Truck, Wrench, Bell, Filter } from "lucide-react"
 
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+export default function FleetDashboardV4() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-200 p-6">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">Fleet Management</h1>
+        <div className="flex gap-3">
+          <Button variant="secondary" className="rounded-xl">Dark</Button>
+          <Button className="rounded-xl">New Record</Button>
+        </div>
+      </div>
 
-<script>
-  tailwind.config = {
-    darkMode: 'class'
-  }
-</script>
+      {/* Floating Filters */}
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="sticky top-4 z-30 backdrop-blur-xl bg-slate-900/70 rounded-2xl p-4 mb-8 shadow-xl flex items-center justify-between"
+      >
+        <div className="flex items-center gap-4">
+          <Filter className="w-5 h-5 text-slate-400" />
+          <select className="bg-slate-800 rounded-lg px-3 py-2 text-sm">
+            <option>All Machines</option>
+          </select>
+          <select className="bg-slate-800 rounded-lg px-3 py-2 text-sm">
+            <option>This Year</option>
+          </select>
+        </div>
+        <Button size="sm" className="rounded-lg">Apply</Button>
+      </motion.div>
 
-<style>
-body { transition: background .3s; }
-.card { border-radius:1rem; padding:1rem; box-shadow:0 2px 8px rgba(0,0,0,.2); }
-.kpi-blue{background:linear-gradient(135deg,#2563eb,#1e40af)}
-.kpi-green{background:linear-gradient(135deg,#16a34a,#065f46)}
-.kpi-red{background:linear-gradient(135deg,#dc2626,#7f1d1d)}
-.kpi-orange{background:linear-gradient(135deg,#f97316,#7c2d12)}
-</style>
-</head>
+      {/* KPI Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        {[{title:'Total Fleet',value:'48',icon:Truck,grad:'from-indigo-500 to-purple-600'},
+          {title:'Active',value:'41',icon:TrendingUp,grad:'from-emerald-500 to-teal-500'},
+          {title:'In Repair',value:'7',icon:Wrench,grad:'from-rose-500 to-pink-600'},
+          {title:'Alerts',value:'5',icon:Bell,grad:'from-amber-500 to-orange-500'}]
+          .map((kpi,i)=>{
+            const Icon = kpi.icon
+            return (
+              <motion.div key={i} whileHover={{ y: -6 }}>
+                <Card className="relative overflow-hidden rounded-2xl">
+                  <div className={`absolute inset-0 opacity-20 bg-gradient-to-br ${kpi.grad}`} />
+                  <CardContent className="p-6 relative">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-xs uppercase text-slate-400 mb-1">{kpi.title}</p>
+                        <h3 className="text-3xl font-black">{kpi.value}</h3>
+                      </div>
+                      <div className="p-3 rounded-xl bg-slate-800">
+                        <Icon className="w-6 h-6" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )
+          })}
+      </div>
 
-<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card className="rounded-2xl">
+          <CardContent className="p-6">
+            <h2 className="font-bold mb-4">Fuel Cost Analytics</h2>
+            <div className="h-72 rounded-xl bg-slate-900 flex items-center justify-center text-slate-500">
+              Chart Area
+            </div>
+          </CardContent>
+        </Card>
 
-<!-- TOP BAR -->
-<div class="sticky top-0 z-50 backdrop-blur bg-white/80 dark:bg-slate-800/80 shadow">
-  <div class="max-w-7xl mx-auto flex justify-between items-center p-3">
-    <div class="flex items-center gap-3">
-      <div class="bg-blue-600 text-white p-2 rounded-xl"><i class="fa-solid fa-truck"></i></div>
-      <div>
-        <div class="font-bold">FleetManager</div>
-        <div class="text-xs opacity-60">V3.2 Dark UI</div>
+        <Card className="rounded-2xl">
+          <CardContent className="p-6">
+            <h2 className="font-bold mb-4">Maintenance Analytics</h2>
+            <div className="h-72 rounded-xl bg-slate-900 flex items-center justify-center text-slate-500">
+              Chart Area
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Machine List Preview */}
+      <div className="mt-10">
+        <h2 className="font-bold mb-4">Live Fleet Status</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1,2,3].map(i => (
+            <Card key={i} className="rounded-xl bg-slate-900">
+              <CardContent className="p-4">
+                <p className="font-bold">MC-00{i}</p>
+                <p className="text-xs text-slate-400">Chiangmai</p>
+                <div className="mt-2 text-emerald-400 text-xs">Active</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
-
-    <div class="flex gap-2">
-      <button id="darkToggle" class="px-3 py-1 rounded bg-slate-200 dark:bg-slate-700">🌙</button>
-      <button id="reloadBtn" class="px-3 py-1 rounded bg-blue-600 text-white">🔄</button>
-    </div>
-  </div>
-
-  <!-- FLOAT FILTER BAR -->
-  <div class="max-w-7xl mx-auto px-3 pb-2">
-    <div class="flex gap-2 overflow-auto">
-      <select id="machineFilter" class="px-3 py-1 rounded dark:bg-slate-700">
-        <option value="">🚜 ทุกคัน</option>
-      </select>
-      <input id="yearFilter" type="number" placeholder="ปี" class="px-3 py-1 rounded dark:bg-slate-700 w-24" />
-      <input id="monthFilter" type="number" placeholder="เดือน" class="px-3 py-1 rounded dark:bg-slate-700 w-24" />
-      <button id="applyFilter" class="px-3 py-1 rounded bg-blue-600 text-white">กรอง</button>
-    </div>
-  </div>
-</div>
-
-<!-- KPI -->
-<div class="max-w-7xl mx-auto p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-  <div class="card kpi-blue text-white">ทั้งหมด<div id="kpiTotal" class="text-3xl font-bold">-</div></div>
-  <div class="card kpi-green text-white">ใช้งาน<div id="kpiActive" class="text-3xl font-bold">-</div></div>
-  <div class="card kpi-red text-white">ซ่อม<div id="kpiRepair" class="text-3xl font-bold">-</div></div>
-  <div class="card kpi-orange text-white">Idle >30 วัน<div id="kpiIdleLong" class="text-3xl font-bold">-</div></div>
-</div>
-
-<!-- CHARTS -->
-<div class="max-w-7xl mx-auto px-3 grid md:grid-cols-2 gap-3">
-  <div class="card bg-white dark:bg-slate-800"><canvas id="fuelChart"></canvas></div>
-  <div class="card bg-white dark:bg-slate-800"><canvas id="maintChart"></canvas></div>
-</div>
-
-<!-- MOBILE CARD LIST -->
-<div id="listArea" class="max-w-7xl mx-auto p-3 grid gap-3"></div>
-
-<script>
-const SHEETS = {
-  machines: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9jak3sAnetueFVqbVYLXhHUYKFE7S7CxSZsEB_NQT_8vRyeN7j_B3OoIORlSPjRBLdDYU53k6fUl/pub?gid=2036292301&single=true&output=csv",
-  fuel: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9jak3sAnetueFVqbVYLXhHUYKFE7S7CxSZsEB_NQT_8vRyeN7j_B3OoIORlSPjRBLdDYU53k6fUl/pub?gid=1215465404&single=true&output=csv",
-  maintenance: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9jak3sAnetueFVqbVYLXhHUYKFE7S7CxSZsEB_NQT_8vRyeN7j_B3OoIORlSPjRBLdDYU53k6fUl/pub?gid=513299430&single=true&output=csv",
-  location: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9jak3sAnetueFVqbVYLXhHUYKFE7S7CxSZsEB_NQT_8vRyeN7j_B3OoIORlSPjRBLdDYU53k6fUl/pub?gid=613103968&single=true&output=csv",
-  insurance: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9jak3sAnetueFVqbVYLXhHUYKFE7S7CxSZsEB_NQT_8vRyeN7j_B3OoIORlSPjRBLdDYU53k6fUl/pub?gid=1698787286&single=true&output=csv"
-};
-
-const store={machines:[],fuel:[],maintenance:[],location:[],insurance:[]};
-let fuelChart,maintChart;
-
-function loadCSV(url){return new Promise(res=>Papa.parse(url,{download:true,header:true,complete:r=>res(r.data)}));}
-
-async function loadData(){
- const [m,f,ma,l,i]=await Promise.all([
-  loadCSV(SHEETS.machines),loadCSV(SHEETS.fuel),loadCSV(SHEETS.maintenance),loadCSV(SHEETS.location),loadCSV(SHEETS.insurance)
- ]);
- store.machines=m;store.fuel=f;store.maintenance=ma;store.location=l;store.insurance=i;
- buildFilters();renderAll();
+  )
 }
-
-function buildFilters(){
- machineFilter.innerHTML='<option value="">🚜 ทุกคัน</option>';
- store.machines.forEach(r=>{
-  const op=document.createElement('option');op.value=r['รหัสเครื่อง'];op.textContent=r['รหัสเครื่อง'];machineFilter.appendChild(op);
- });
-}
-
-function renderAll(){renderKPI();renderCharts();renderCards();}
-
-function renderKPI(){
- kpiTotal.innerText=store.machines.length;
- kpiActive.innerText=store.machines.filter(r=>r['สถานะ']==='ใช้งาน').length;
- kpiRepair.innerText=store.machines.filter(r=>r['สถานะ']==='ซ่อม').length;
- const today=new Date();
- kpiIdleLong.innerText=store.location.filter(r=>!r['วันที่ออก']).filter(r=>((today-new Date(r['วันที่เข้า']))/86400000)>30).length;
-}
-
-function renderCards(){
- listArea.innerHTML='';
- let rows=store.machines;
- if(machineFilter.value) rows=rows.filter(r=>r['รหัสเครื่อง']===machineFilter.value);
-
- rows.forEach(r=>{
-  const div=document.createElement('div');
-  div.className='card bg-white dark:bg-slate-800';
-  div.innerHTML=`
-   <div class='flex justify-between'>
-     <div class='font-bold'>${r['รหัสเครื่อง']} - ${r['ชื่อเครื่อง']}</div>
-     <div>${r['สถานะ']}</div>
-   </div>
-   <div class='text-sm opacity-70 mt-1'>${r['ประเภท']} | ${r['สถานที่ปัจจุบัน']}</div>
-   <div class='text-right mt-2 font-semibold'>⏱ ${r['ชั่วโมงทำงาน']} ชม.</div>
-  `;
-  listArea.appendChild(div);
- });
-}
-
-function renderCharts(){
- const agg=(arr,dateField,valField)=>{
-  const o={};arr.forEach(r=>{if(!r[dateField])return;const m=r[dateField].slice(0,7);o[m]=(o[m]||0)+Number(r[valField]||0);});return o;}
- const fAgg=agg(store.fuel,'วันที่','ค่าใช้จ่าย(บาท)');
- const mAgg=agg(store.maintenance,'วันที่เริ่มซ่อม','ค่าใช้จ่าย(บาท)');
-
- const fLabels=Object.keys(fAgg).sort();const fVals=fLabels.map(k=>fAgg[k]);
- const mLabels=Object.keys(mAgg).sort();const mVals=mLabels.map(k=>mAgg[k]);
-
- if(fuelChart)fuelChart.destroy();
- fuelChart=new Chart(fuelChart,{type:'bar',data:{labels:fLabels,datasets:[{data:fVals}]}});
-
- if(maintChart)maintChart.destroy();
- maintChart=new Chart(maintChart,{type:'bar',data:{labels:mLabels,datasets:[{data:mVals}]}});
-}
-
-// Dark Mode Toggle
-const toggle=document.getElementById('darkToggle');
-toggle.onclick=()=>document.documentElement.classList.toggle('dark');
-
-applyFilter.onclick=renderCards;
-reloadBtn.onclick=loadData;
-
-loadData();
-</script>
-</body>
-</html>
