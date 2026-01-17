@@ -183,13 +183,28 @@
         .modal-content {
             background: var(--bg-panel);
             border: 2px solid var(--safety-yellow);
-            width: 95%; max-width: 800px; max-height: 90vh; 
+            width: 95%; max-width: 900px; max-height: 95vh; 
             display: flex; flex-direction: column;
             transform: scale(0.95); transition: transform 0.3s;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             color: var(--text-main);
         }
         .modal-overlay.show .modal-content { transform: scale(1); }
+
+        /* Sub Modal (Z-Index higher than normal modal) */
+        .sub-modal-content {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-top: 4px solid var(--safety-orange);
+            width: 90%; max-width: 500px; max-height: 80vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            animation: slide-up 0.3s ease-out;
+        }
+        @keyframes slide-up {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
 
         .blueprint-container {
             background-color: var(--bg-panel);
@@ -218,6 +233,26 @@
         <i class="fas fa-cog loader-gear mb-4"></i>
         <div class="text-xl font-bold text-[var(--safety-yellow)] tracking-widest font-[Black Ops One]">กำลังโหลดข้อมูล...</div>
         <div class="text-[var(--text-muted)] font-mono mt-1 text-xs">เชื่อมต่อฐานข้อมูลเครื่องจักร...</div>
+    </div>
+
+    <!-- Sub Modal (For Day Details) -->
+    <div id="sub-modal" class="modal-overlay" style="z-index: 200;">
+        <div class="sub-modal-content">
+            <div class="bg-[var(--bg-panel)] px-4 py-3 flex justify-between items-center border-b border-[var(--border-color)]">
+                <h3 class="text-sm font-bold flex items-center gap-2 text-[var(--text-main)]">
+                    <i class="fas fa-list-ul text-[var(--safety-orange)]"></i> <span id="sub-modal-title">รายละเอียดรายวัน</span>
+                </h3>
+                <button onclick="closeSubModal()" class="text-[var(--text-muted)] hover:text-white transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto bg-[var(--bg-body)]" id="sub-modal-body">
+                <!-- Content injected here -->
+            </div>
+            <div class="px-4 py-2 bg-[var(--bg-panel)] border-t border-[var(--border-color)] text-right">
+                <button onclick="closeSubModal()" class="construct-btn px-4 text-xs">ปิด</button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Popup -->
@@ -353,8 +388,8 @@
                 </div>
             </div>
 
-            <!-- New: Project Card -->
-            <div id="card-project" class="industrial-card card-interactive status-orange p-3 cursor-pointer" onclick="switchGraphMode('project')">
+            <!-- New: Project Card (Modified onClick) -->
+            <div id="card-project" class="industrial-card card-interactive status-orange p-3 cursor-pointer" onclick="openModal('projects')">
                 <div class="flex justify-between items-start">
                     <div class="overflow-hidden">
                         <div class="text-[var(--safety-orange)] text-[10px] font-bold tracking-wider mb-1">สรุปโครงการ</div>
@@ -427,23 +462,29 @@
             maintenance: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRLxlqlfXntTk-z4x45kGjZ1OjHFnpCeaqjGZGpkfohr3difiJQsI-p-3iZwgyM7UO35kRztltMKgbd/pub?gid=1964968763&single=true&output=csv'
         };
 
-        let appData = { machines: [], fuel: [], maintenance: [], alerts: { expired: [], warning: [], all: [] } };
+        let appData = { machines: [], fuel: [], maintenance: [], alerts: { expired: [], warning: [], all: [] }, projects: {} };
         let currentGraphMode = 'fuel'; // 'fuel', 'maintenance', 'project'
         let chartState = { instance: null, view: 'year', subView: 'trend', selectedMachine: 'ALL', selectedYear: null, selectedMonth: null, selectedDay: null };
         let lastModalType = 'all'; 
         
-        let modalFuelChartInstance = null;
-        let modalMaintChartInstance = null;
-        let modalChartState = { view: 'year', year: null, month: null, machineCode: null }; 
+        let modalChartInstance = null;
+        let modalChartState = { 
+            id: null, 
+            type: 'machine', 
+            view: 'year', 
+            dataType: 'fuel', // 'fuel' or 'maintenance'
+            subView: 'trend', // 'trend' or 'top10'
+            year: null, 
+            month: null,
+            machineFilter: 'ALL' // For Project View
+        }; 
 
         // --- Helpers ---
         function parseDate(dateStr) {
             if (!dateStr) return null;
-            let d = new Date(dateStr);
-            if (!isNaN(d.getTime())) {
-                 if (d.getFullYear() > 2400) { d.setFullYear(d.getFullYear() - 543); }
-                 return d;
-            }
+            
+            // แก้ไข: ตรวจสอบรูปแบบ dd/mm/yyyy ที่มีเครื่องหมาย / ก่อนเป็นอันดับแรก
+            // เพื่อป้องกันไม่ให้ new Date() อ่านเป็น mm/dd/yyyy (แบบ US)
             if (dateStr.includes('/')) {
                 const parts = dateStr.split('/');
                 if (parts.length === 3) {
@@ -454,6 +495,13 @@
                     const d2 = new Date(year, month, day);
                     if (!isNaN(d2.getTime())) return d2;
                 }
+            }
+
+            // ถ้าไม่มี / หรือแปลงไม่ได้ ค่อยลองใช้แบบมาตรฐาน (เช่น ISO YYYY-MM-DD)
+            let d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+                 if (d.getFullYear() > 2400) { d.setFullYear(d.getFullYear() - 543); }
+                 return d;
             }
             return null;
         }
@@ -478,7 +526,7 @@
             else if(currentGraphMode === 'fuel') updateChart();
             else renderMaintenanceChart();
             
-            if(document.getElementById('modal').classList.contains('show') && modalChartState.machineCode) {
+            if(document.getElementById('modal').classList.contains('show') && modalChartState.id) {
                 updateModalCharts();
             }
         }
@@ -501,7 +549,6 @@
                 if (maintRes) {
                     const parsedMaint = Papa.parse(maintRes, { header: true, skipEmptyLines: true }).data;
                     appData.maintenance = cleanCSV(parsedMaint);
-                    // Normalize 'ค่าใช้จ่าย' to 'ค่าซ่อมบำรุง'
                     appData.maintenance.forEach(row => {
                         if (row['ค่าใช้จ่าย'] && !row['ค่าซ่อมบำรุง']) { row['ค่าซ่อมบำรุง'] = row['ค่าใช้จ่าย']; }
                     });
@@ -568,7 +615,6 @@
              appData.maintenance.forEach(item => { totalCost += parseFloat(item['ค่าซ่อมบำรุง']) || 0; });
              document.getElementById('total-maintenance').innerText = formatNumber(totalCost) + " บาท";
              
-             // Count Projects
              const projects = new Set();
              appData.fuel.forEach(f => { if(f['โครงการ']) projects.add(f['โครงการ']); });
              appData.maintenance.forEach(m => { if(m['โครงการ']) projects.add(m['โครงการ']); });
@@ -582,6 +628,7 @@
             updateMaintenanceStats();
             updateChartColors();
             processAlerts();
+            processProjects(); 
             setupFuelChart();
             document.getElementById('loading').style.opacity = '0';
             setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
@@ -615,6 +662,22 @@
             document.getElementById('total-expired').innerText = appData.alerts.expired.length;
             document.getElementById('total-warning').innerText = appData.alerts.warning.length;
         }
+        
+        function processProjects() {
+            appData.projects = {};
+            appData.fuel.forEach(item => {
+                let p = item['โครงการ'] || 'ไม่ระบุโครงการ';
+                if (!appData.projects[p]) appData.projects[p] = { name: p, fuel: 0, cost: 0, machines: new Set() };
+                appData.projects[p].fuel += parseFloat(item['ปริมาณ(ลิตร)']) || 0;
+                if(item['รหัสรถ']) appData.projects[p].machines.add(item['รหัสรถ']);
+            });
+            appData.maintenance.forEach(item => {
+                let p = item['โครงการ'] || 'ไม่ระบุโครงการ';
+                if (!appData.projects[p]) appData.projects[p] = { name: p, fuel: 0, cost: 0, machines: new Set() };
+                appData.projects[p].cost += parseFloat(item['ค่าซ่อมบำรุง']) || 0;
+                if(item['รหัสรถ']) appData.projects[p].machines.add(item['รหัสรถ']);
+            });
+        }
 
         // --- Modal Logic ---
         function openModal(type) {
@@ -622,25 +685,33 @@
             const modal = document.getElementById('modal'), title = document.getElementById('modal-title'), body = document.getElementById('modal-body');
             body.innerHTML = '';
             let dataList = [], headerText = '', emptyText = '';
-            if (type === 'all') { headerText = 'บัญชีเครื่องจักรทั้งหมด'; dataList = appData.alerts.all; emptyText = 'ไม่พบข้อมูล'; }
-            else if (type === 'expired') { headerText = 'รายการแจ้งเตือนวิกฤต (หมดอายุ)'; dataList = appData.alerts.expired; emptyText = 'ไม่มีรายการหมดอายุ'; }
-            else if (type === 'warning') { headerText = 'คาดการณ์ซ่อมบำรุง (30 วัน)'; dataList = appData.alerts.warning; emptyText = 'ไม่มีการแจ้งเตือน'; }
+            
+            if (type === 'projects') {
+                headerText = 'รายชื่อโครงการทั้งหมด';
+                dataList = Object.values(appData.projects).sort((a,b) => b.fuel - a.fuel); 
+                emptyText = 'ไม่พบข้อมูลโครงการ';
+            } else if (type === 'all') { headerText = 'บัญชีเครื่องจักรทั้งหมด'; dataList = appData.alerts.all; emptyText = 'ไม่พบข้อมูล'; 
+            } else if (type === 'expired') { headerText = 'รายการแจ้งเตือนวิกฤต (หมดอายุ)'; dataList = appData.alerts.expired; emptyText = 'ไม่มีรายการหมดอายุ'; 
+            } else if (type === 'warning') { headerText = 'คาดการณ์ซ่อมบำรุง (30 วัน)'; dataList = appData.alerts.warning; emptyText = 'ไม่มีการแจ้งเตือน'; }
+            
             title.innerText = headerText;
             
             const filterBar = document.getElementById('modal-filter-bar');
-            if (type === 'all') {
+            
+            if (type === 'all' || type === 'projects') {
                 filterBar.classList.remove('hidden');
                 document.getElementById('machine-search').value = '';
-                populateTypeFilter();
+                document.getElementById('machine-search').placeholder = type === 'projects' ? "พิมพ์ค้นหาชื่อโครงการ..." : "พิมพ์ค้นหา รหัส หรือ ทะเบียน...";
+                document.getElementById('machine-type-filter').parentNode.style.display = type === 'projects' ? 'none' : 'block';
+                if (type === 'all') populateTypeFilter();
             } else {
                 filterBar.classList.add('hidden');
             }
 
-            if (dataList.length > 0 && type !== 'all') {
-                 const listHTML = dataList.map(item => generateCardHTML(item, type)).join('');
-                 body.innerHTML = listHTML;
-            } else if (type === 'all') {
-                 filterModalList(); 
+            if (dataList.length > 0) {
+                 if (type === 'projects') { filterModalList(); } 
+                 else if (type !== 'all') { body.innerHTML = dataList.map(item => generateCardHTML(item, type)).join(''); } 
+                 else { filterModalList(); }
             } else {
                  body.innerHTML = `<div class="text-center text-[var(--text-muted)] py-8 font-mono">${emptyText}</div>`;
             }
@@ -659,8 +730,21 @@
         function filterModalList() {
             const type = lastModalType;
             const body = document.getElementById('modal-body');
-            let sourceList = appData.alerts.all;
             const searchText = document.getElementById('machine-search').value.toLowerCase().trim();
+            
+            if (type === 'projects') {
+                let sourceList = Object.values(appData.projects).sort((a,b) => b.fuel - a.fuel);
+                const filteredList = sourceList.filter(p => p.name.toLowerCase().includes(searchText));
+                
+                if (filteredList.length === 0) {
+                    body.innerHTML = `<div class="text-center text-[var(--text-muted)] py-8 font-mono">ไม่พบข้อมูลโครงการ</div>`;
+                } else {
+                    body.innerHTML = filteredList.map(item => generateProjectCardHTML(item)).join('');
+                }
+                return;
+            }
+
+            let sourceList = appData.alerts.all;
             const filterType = document.getElementById('machine-type-filter').value;
             const filteredList = sourceList.filter(item => {
                 const matchesSearch = !searchText || 
@@ -682,7 +766,7 @@
         function generateCardHTML(item, type) {
             const { info, expiredIssues, warningIssues } = item;
             const code = info['รหัส'], plate = info['ทะเบียน'] || '-', typeName = info['ประเภทรถ'] || '';
-            let borderColor = '', statusIcon = '', bgClass = 'bg-[var(--bg-card)]', issuesHtml = '';
+            let borderColor = '', statusIcon = '', bgClass = 'bg-[var(--bg-card)]';
             if (type === 'all') {
                 borderColor = 'border-l-4 border-[var(--status-blue)]';
                 statusIcon = '<span class="text-[var(--text-muted)] font-bold text-[10px] bg-[var(--bg-body)] px-2 py-0.5 rounded-sm border border-[var(--border-color)]">รายการ</span>';
@@ -691,6 +775,7 @@
                 else if (warningIssues.length > 0) { borderColor = 'border-l-4 border-[var(--safety-yellow)]'; statusIcon = '<span class="text-black font-bold text-[10px] bg-[var(--safety-yellow)] px-2 py-0.5 rounded-sm">เตือน</span>'; bgClass = 'bg-yellow-500/10'; }
                 else { borderColor = 'border-l-4 border-[var(--status-green)]'; statusIcon = '<span class="text-white font-bold text-[10px] bg-[var(--status-green)] px-2 py-0.5 rounded-sm">ปกติ</span>'; }
             }
+            let issuesHtml = '';
             if(type !== 'all' && (expiredIssues.length > 0 || warningIssues.length > 0)) {
                 issuesHtml = '<div class="mt-2 pl-[44px] space-y-1 border-t border-[var(--border-color)] pt-1">';
                 expiredIssues.forEach(txt => issuesHtml += `<div class="text-xs text-[var(--status-red)] font-mono mt-1"><i class="fas fa-times-circle"></i> ${txt}</div>`);
@@ -701,7 +786,28 @@
                 <div class="flex justify-between items-start"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-[var(--bg-body)] flex items-center justify-center text-[var(--text-muted)] border border-[var(--border-color)] rounded"><i class="fas fa-truck-pickup text-sm"></i></div><div><div class="flex items-center gap-2"><span class="font-bold text-[var(--text-main)] font-[Black Ops One] text-base">${code}</span>${statusIcon}</div><div class="text-[10px] text-[var(--text-muted)] font-mono">${plate} // ${typeName}</div></div></div><i class="fas fa-chevron-right text-[var(--text-muted)] text-xs mt-2"></i></div>${issuesHtml}</div>`;
         }
 
-        // --- Detail View ---
+        function generateProjectCardHTML(item) {
+            return `<div onclick="showProjectDetails('${item.name}')" class="bg-[var(--bg-card)] border border-[var(--border-color)] border-l-4 border-[var(--safety-orange)] p-3 mb-2 shadow-sm rounded cursor-pointer hover:shadow-lg transition">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-[var(--bg-body)] flex items-center justify-center text-[var(--safety-orange)] border border-[var(--border-color)] rounded">
+                            <i class="fas fa-building text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-[var(--text-main)] text-sm mb-1">${item.name}</div>
+                            <div class="flex gap-3 text-[10px] font-mono text-[var(--text-muted)]">
+                                <div><i class="fas fa-gas-pump text-[var(--safety-yellow)]"></i> ${formatNumber(item.fuel)} L</div>
+                                <div><i class="fas fa-tools text-[var(--status-purple)]"></i> ${formatNumber(item.cost)} B</div>
+                                <div><i class="fas fa-truck-monster"></i> ${item.machines.size} คัน</div>
+                            </div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right text-[var(--text-muted)] text-xs mt-2"></i>
+                </div>
+            </div>`;
+        }
+
+        // --- Detail View (Machine) ---
         function showMachineDetails(code, initialContext = {}) {
             const machine = appData.machines.find(m => m['รหัส'] === code);
             if (!machine) return;
@@ -710,7 +816,13 @@
             document.getElementById('modal-filter-bar').classList.add('hidden');
             document.getElementById('modal-title').innerText = `รายละเอียด: ${code}`;
             
-            modalChartState = { machineCode: code, view: initialContext.view || 'year', year: initialContext.year || null, month: initialContext.month || null };
+            modalChartState = { 
+                id: code, type: 'machine', 
+                view: initialContext.view || 'year', 
+                year: initialContext.year || null, 
+                month: initialContext.month || null,
+                dataType: 'fuel', subView: 'trend', machineFilter: 'ALL'
+            };
             
             document.getElementById('modal-body').innerHTML = `
                 <div class="space-y-4 animate-fade-in">
@@ -730,35 +842,193 @@
                             <div class="col-span-2 border-t border-[var(--border-color)] pt-2 mt-1"><span class="text-[var(--text-muted)] block">หมายเหตุ</span> <div class="text-[var(--text-main)]">${machine['หมายเหตุ'] || '-'}</div></div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div class="bg-[var(--bg-body)] p-3 rounded border border-[var(--border-color)]">
-                            <div class="flex justify-between items-center mb-2">
-                                <h4 class="text-[var(--safety-yellow)] text-xs font-bold flex items-center gap-2"><i class="fas fa-gas-pump"></i> <span id="modal-fuel-title">สถิติน้ำมัน</span></h4>
-                                
-                                <div class="flex items-center gap-2">
-                                    <span id="val-modal-fuel" class="text-[10px] text-[var(--safety-yellow)] font-mono font-bold"></span>
-                                    <button id="btn-back-modal-fuel" onclick="stepBackModalCharts()" class="hidden text-[var(--text-muted)] hover:text-white text-[10px] border border-[var(--border-color)] px-2 rounded"><i class="fas fa-arrow-up"></i></button>
-                                </div>
-                            </div>
-                            <div class="h-40 relative"><canvas id="modalFuelChart"></canvas></div>
-                        </div>
-                        <div class="bg-[var(--bg-body)] p-3 rounded border border-[var(--border-color)]">
-                            <div class="flex justify-between items-center mb-2">
-                                <h4 class="text-[var(--status-purple)] text-xs font-bold flex items-center gap-2"><i class="fas fa-wrench"></i> <span id="modal-maint-title">ค่าซ่อมบำรุง</span></h4>
-                                
-                                <div class="flex items-center gap-2">
-                                    <span id="val-modal-maint" class="text-[10px] text-[var(--status-purple)] font-mono font-bold"></span>
-                                    <button id="btn-back-modal-maint" onclick="stepBackModalCharts()" class="hidden text-[var(--text-muted)] hover:text-white text-[10px] border border-[var(--border-color)] px-2 rounded"><i class="fas fa-arrow-up"></i></button>
-                                </div>
-                            </div>
-                            <div class="h-40 relative"><canvas id="modalMaintChart"></canvas></div>
-                        </div>
-                    </div>
+                    ${generateModalChartsHTML(false)}
                 </div>`;
             setTimeout(() => { updateModalCharts(); }, 50);
         }
 
-        // --- Shared Logic for Modal Charts ---
+        // --- Detail View (Project) ---
+        function showProjectDetails(projectName) {
+            const project = appData.projects[projectName];
+            if (!project) return;
+            const modal = document.getElementById('modal');
+            if (!modal.classList.contains('show')) { lastModalType = 'projects'; modal.classList.add('show'); }
+            
+            document.getElementById('modal-filter-bar').classList.add('hidden');
+            document.getElementById('modal-title').innerText = `โครงการ: ${projectName}`;
+            
+            modalChartState = { 
+                id: projectName, type: 'project', 
+                view: 'year', year: null, month: null,
+                dataType: 'fuel', subView: 'trend', machineFilter: 'ALL'
+            };
+            
+            // Generate Machine Filter Options for Project
+            let machineOptions = '<option value="ALL">>> เครื่องจักรทั้งหมดในโครงการ</option>';
+            project.machines.forEach(m => machineOptions += `<option value="${m}">${m}</option>`);
+
+            document.getElementById('modal-body').innerHTML = `
+                <div class="space-y-4 animate-fade-in">
+                    <button onclick="openModal('projects')" class="construct-btn text-xs mb-2 flex items-center gap-1"><i class="fas fa-arrow-left"></i> ย้อนกลับไปรายชื่อ</button>
+                    
+                    <div class="bg-[var(--bg-body)] p-3 rounded border border-[var(--border-color)]">
+                        <div class="grid grid-cols-3 gap-3 text-center">
+                            <div>
+                                <span class="text-[var(--text-muted)] text-[10px] block mb-1">ปริมาณน้ำมันรวม</span>
+                                <div class="text-[var(--safety-yellow)] font-bold text-lg font-mono">${formatNumber(project.fuel)} L</div>
+                            </div>
+                            <div class="border-l border-[var(--border-color)]">
+                                <span class="text-[var(--text-muted)] text-[10px] block mb-1">ค่าซ่อมบำรุงรวม</span>
+                                <div class="text-[var(--status-purple)] font-bold text-lg font-mono">${formatNumber(project.cost)} B</div>
+                            </div>
+                            <div class="border-l border-[var(--border-color)]">
+                                <span class="text-[var(--text-muted)] text-[10px] block mb-1">เครื่องจักรในงาน</span>
+                                <div class="text-[var(--text-main)] font-bold text-lg font-mono">${project.machines.size}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${generateModalChartsHTML(true, machineOptions)}
+                </div>`;
+            setTimeout(() => { updateModalCharts(); }, 50);
+        }
+
+        function generateModalChartsHTML(isProject, machineOptions = '') {
+            const filterHtml = isProject ? `
+                <div class="relative group w-full sm:w-auto">
+                    <select id="modal-machine-select" onchange="setModalMachineFilter(this.value)" class="appearance-none bg-[var(--bg-body)] border border-[var(--border-color)] text-[var(--text-main)] py-1 px-3 pr-8 rounded font-mono text-[10px] focus:outline-none focus:border-[var(--safety-yellow)] w-full sm:w-40 cursor-pointer">
+                        ${machineOptions}
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-muted)]">
+                        <i class="fas fa-chevron-down text-[10px]"></i>
+                    </div>
+                </div>` : '';
+            
+            // Hide Top 10 for Single Machine View (as it only has 1 machine)
+            const top10Style = !isProject ? 'style="display:none"' : '';
+
+            return `
+                <div class="bg-[var(--bg-body)] p-3 rounded border border-[var(--border-color)]">
+                    <div class="flex flex-col gap-3 mb-3">
+                        <div class="flex justify-between items-center">
+                             <div class="flex bg-[var(--bg-panel)] rounded p-0.5 border border-[var(--border-color)]">
+                                <button onclick="setModalDataType('fuel')" id="modal-btn-fuel" class="px-3 py-1 text-xs rounded font-bold transition-all bg-[var(--safety-yellow)] text-black">สถิติน้ำมัน</button>
+                                <button onclick="setModalDataType('maintenance')" id="modal-btn-maint" class="px-3 py-1 text-xs rounded font-bold transition-all text-[var(--text-muted)] hover:text-[var(--text-main)]">ค่าซ่อมบำรุง</button>
+                             </div>
+                             <div class="flex items-center gap-2">
+                                <span id="modal-chart-val" class="text-xs font-mono font-bold text-[var(--safety-yellow)]"></span>
+                             </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap justify-between items-center gap-2 border-t border-[var(--border-color)] pt-2">
+                             <div class="text-[10px] text-[var(--text-muted)] font-mono flex items-center gap-2" id="modal-chart-breadcrumb">
+                                <!-- Breadcrumb -->
+                             </div>
+                             
+                             <div class="flex items-center gap-2">
+                                ${filterHtml}
+                                <div class="bg-[var(--bg-panel)] p-0.5 border border-[var(--border-color)] rounded flex gap-0.5">
+                                    <button class="construct-btn toggle-btn text-[10px] px-2 active" id="modal-btn-trend" onclick="setModalSubView('trend')">แนวโน้ม</button>
+                                    <button class="construct-btn toggle-btn text-[10px] px-2" id="modal-btn-top10" onclick="setModalSubView('top10')" ${top10Style}>10 อันดับ</button>
+                                </div>
+                                <button id="modal-chart-back" onclick="stepBackModalCharts()" class="hidden construct-btn text-[10px] px-2"><i class="fas fa-undo"></i></button>
+                             </div>
+                        </div>
+                    </div>
+                    <div class="h-64 relative w-full">
+                        <canvas id="modalChart"></canvas>
+                    </div>
+                </div>`;
+        }
+
+        // --- Sub Modal Logic (Details Popup) ---
+        function closeSubModal() {
+            document.getElementById('sub-modal').classList.remove('show');
+        }
+
+        function showDayDetails(day) {
+            const dateStr = `${day}/${modalChartState.month + 1}/${modalChartState.year}`;
+            const mName = new Date(modalChartState.year, modalChartState.month).toLocaleString('th-TH', { month: 'long' });
+            
+            document.getElementById('sub-modal-title').innerText = `รายละเอียดวันที่ ${day} ${mName} ${modalChartState.year}`;
+            
+            let dataSource = modalChartState.dataType === 'fuel' ? appData.fuel : appData.maintenance;
+            let valKey = modalChartState.dataType === 'fuel' ? 'ปริมาณ(ลิตร)' : 'ค่าซ่อมบำรุง';
+            let unit = modalChartState.dataType === 'fuel' ? 'ลิตร' : 'บาท';
+            
+            // Filter Data for this specific day and scope
+            const details = dataSource.filter(item => {
+                const d = parseDate(item['วันที่']);
+                if (!d) return false;
+                
+                const isDateMatch = d.getDate() === day && d.getMonth() === modalChartState.month && d.getFullYear() === modalChartState.year;
+                if (!isDateMatch) return false;
+
+                if (modalChartState.type === 'project') {
+                    const matchProj = (item['โครงการ'] || 'ไม่ระบุโครงการ') === modalChartState.id;
+                    const matchMachine = modalChartState.machineFilter === 'ALL' || item['รหัสรถ'] === modalChartState.machineFilter;
+                    return matchProj && matchMachine;
+                } else {
+                    return item['รหัสรถ'] === modalChartState.id;
+                }
+            });
+
+            if (details.length === 0) {
+                document.getElementById('sub-modal-body').innerHTML = '<div class="text-center text-[var(--text-muted)] py-4">ไม่พบข้อมูล</div>';
+            } else {
+                let html = '';
+                details.forEach(item => {
+                    const machine = appData.machines.find(m => m['รหัส'] === item['รหัสรถ']) || {};
+                    const plate = machine['ทะเบียน'] || '-';
+                    const val = parseFloat(item[valKey]) || 0;
+                    const note = item['หมายเหตุ'] || item['รายการ'] || '-';
+                    
+                    html += `
+                    <div class="flex justify-between items-start border-b border-[var(--border-color)] py-2 last:border-0">
+                        <div>
+                            <div class="font-bold text-[var(--text-main)] text-sm flex items-center gap-2">
+                                <span>${item['รหัสรถ']}</span>
+                                <span class="text-[10px] text-[var(--text-muted)] font-mono bg-[var(--bg-panel)] px-1 rounded border border-[var(--border-color)]">${plate}</span>
+                            </div>
+                            <div class="text-xs text-[var(--text-muted)] mt-0.5">${note}</div>
+                        </div>
+                        <div class="text-right font-mono font-bold text-[var(--safety-yellow)]">
+                            ${formatNumber(val)} ${unit}
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('sub-modal-body').innerHTML = html;
+            }
+            
+            document.getElementById('sub-modal').classList.add('show');
+        }
+
+        // --- Unified Modal Chart Logic ---
+        function setModalDataType(type) {
+            modalChartState.dataType = type;
+            const btnFuel = document.getElementById('modal-btn-fuel');
+            const btnMaint = document.getElementById('modal-btn-maint');
+            if(type === 'fuel') {
+                btnFuel.className = "px-3 py-1 text-xs rounded font-bold transition-all bg-[var(--safety-yellow)] text-black shadow-sm";
+                btnMaint.className = "px-3 py-1 text-xs rounded font-bold transition-all text-[var(--text-muted)] hover:text-[var(--text-main)]";
+            } else {
+                btnFuel.className = "px-3 py-1 text-xs rounded font-bold transition-all text-[var(--text-muted)] hover:text-[var(--text-main)]";
+                btnMaint.className = "px-3 py-1 text-xs rounded font-bold transition-all bg-[var(--status-purple)] text-white shadow-sm";
+            }
+            updateModalCharts();
+        }
+
+        function setModalSubView(view) {
+            modalChartState.subView = view;
+            document.getElementById('modal-btn-trend').classList.toggle('active', view === 'trend');
+            document.getElementById('modal-btn-top10').classList.toggle('active', view === 'top10');
+            updateModalCharts();
+        }
+
+        function setModalMachineFilter(val) {
+            modalChartState.machineFilter = val;
+            updateModalCharts();
+        }
 
         function stepBackModalCharts() {
             if (modalChartState.view === 'day') {
@@ -772,118 +1042,180 @@
         }
 
         function updateModalCharts() {
-            renderModalFuelChart();
-            renderModalMaintChart();
-            
-            // Update Back Buttons Visibility
-            const isRoot = modalChartState.view === 'year';
-            ['btn-back-modal-fuel', 'btn-back-modal-maint'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                   if (isRoot) el.classList.add('hidden');
-                   else el.classList.remove('hidden');
+            // Determine Data Source
+            let dataSource = modalChartState.dataType === 'fuel' ? appData.fuel : appData.maintenance;
+            let valKey = modalChartState.dataType === 'fuel' ? 'ปริมาณ(ลิตร)' : 'ค่าซ่อมบำรุง';
+            let colorMain = modalChartState.dataType === 'fuel' ? getCssVar('--safety-yellow') : getCssVar('--status-purple');
+            let unit = modalChartState.dataType === 'fuel' ? 'ลิตร' : 'บาท';
+
+            // Filter Data Scope (Project or Machine)
+            let filteredData = [];
+            if (modalChartState.type === 'project') {
+                // Filter by Project Name AND Machine Filter (if set)
+                filteredData = dataSource.filter(item => {
+                    const matchProj = (item['โครงการ'] || 'ไม่ระบุโครงการ') === modalChartState.id;
+                    const matchMachine = modalChartState.machineFilter === 'ALL' || item['รหัสรถ'] === modalChartState.machineFilter;
+                    return matchProj && matchMachine;
+                });
+            } else {
+                // Single Machine Scope
+                filteredData = dataSource.filter(item => item['รหัสรถ'] === modalChartState.id);
+            }
+
+            // --- Logic mirroring Main Chart ---
+            let labels = [], values = [], total = 0, breadcrumb = '', labelText = '';
+            const isAll = modalChartState.type === 'project' && modalChartState.machineFilter === 'ALL'; 
+
+            // Color Function
+            const colorFunc = (ctx) => {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 300); 
+                let c1, c2;
+                if(modalChartState.dataType === 'fuel') {
+                     c1 = modalChartState.subView === 'top10' ? getCssVar('--safety-orange') : getCssVar('--safety-yellow');
+                     c2 = 'rgba(0,0,0,0.1)';
+                } else {
+                     c1 = modalChartState.subView === 'top10' ? '#d946ef' : getCssVar('--status-purple');
+                     c2 = 'rgba(0,0,0,0.1)';
                 }
-            });
-        }
+                gradient.addColorStop(0, c1); gradient.addColorStop(1, c2);
+                return gradient;
+            };
 
-        function renderModalFuelChart() {
-            const code = modalChartState.machineCode;
-            const machineFuel = appData.fuel.filter(f => f['รหัสรถ'] === code);
-            const titleElem = document.getElementById('modal-fuel-title');
-            const valElem = document.getElementById('val-modal-fuel');
-            
-            let labels = [], data = [], color = getCssVar('--safety-yellow'), total = 0;
+            const filterAndSum = (filterFn, groupFn) => {
+                const grouped = {};
+                filteredData.forEach(item => {
+                    if (filterFn(item)) {
+                        const val = parseFloat(item[valKey]) || 0;
+                        total += val;
+                        const key = groupFn(item);
+                        grouped[key] = (grouped[key] || 0) + val;
+                    }
+                });
+                return grouped;
+            };
 
+            // View Logic
             if (modalChartState.view === 'year') {
-                if(titleElem) titleElem.innerText = `สถิติน้ำมัน (รายปี)`;
-                const grouped = {}; machineFuel.forEach(item => { const d = parseDate(item['วันที่']); if (d) { const val = parseFloat(item['ปริมาณ(ลิตร)'])||0; grouped[d.getFullYear()] = (grouped[d.getFullYear()] || 0) + val; total += val; } });
-                labels = Object.keys(grouped).sort(); data = labels.map(y => grouped[y]); color = getCssVar('--status-blue');
-            } else if (modalChartState.view === 'month') {
-                if (!modalChartState.year) { const years = [...new Set(machineFuel.map(i => parseDate(i['วันที่'])?.getFullYear()).filter(y => y))].sort((a,b) => b-a); modalChartState.year = years.length > 0 ? years[0] : new Date().getFullYear(); }
-                if(titleElem) titleElem.innerText = `สถิติน้ำมัน (ปี ${modalChartState.year})`;
-                const monthsTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                const grouped = new Array(12).fill(0); machineFuel.forEach(item => { const d = parseDate(item['วันที่']); if (d && d.getFullYear() === modalChartState.year) { const val = parseFloat(item['ปริมาณ(ลิตร)'])||0; grouped[d.getMonth()] += val; total += val; } });
-                labels = monthsTH; data = grouped; color = getCssVar('--safety-yellow');
-            } else if (modalChartState.view === 'day') {
-                const mName = new Date(modalChartState.year, modalChartState.month).toLocaleString('th-TH', { month: 'short' });
-                if(titleElem) titleElem.innerText = `สถิติน้ำมัน (${mName} ${modalChartState.year})`;
-                const daysInMonth = new Date(modalChartState.year, modalChartState.month + 1, 0).getDate();
-                const grouped = new Array(daysInMonth).fill(0); machineFuel.forEach(item => { const d = parseDate(item['วันที่']); if (d && d.getFullYear() === modalChartState.year && d.getMonth() === modalChartState.month) { const val = parseFloat(item['ปริมาณ(ลิตร)'])||0; grouped[d.getDate() - 1] += val; total += val; } });
-                labels = Array.from({length: daysInMonth}, (_, i) => i + 1); data = grouped; color = getCssVar('--status-red');
-            }
-
-            if(valElem) valElem.innerText = `${formatNumber(total)} ลิตร`;
-
-            if (modalFuelChartInstance) modalFuelChartInstance.destroy();
-            const ctx = document.getElementById('modalFuelChart').getContext('2d');
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300); gradient.addColorStop(0, color); gradient.addColorStop(1, 'rgba(0,0,0,0.1)');
-            
-            modalFuelChartInstance = new Chart(ctx, {
-                type: 'bar', data: { labels: labels, datasets: [{ label: 'ลิตร', data: data, backgroundColor: color, borderRadius: 2 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-                    scales: { x: { display: true, ticks: { color: getCssVar('--text-muted'), font: { size: 9 } }, grid: { display: false } }, y: { display: true, ticks: { color: getCssVar('--text-muted'), font: { size: 9 } }, grid: { color: getCssVar('--chart-grid') } } },
-                    onClick: (e, activeEls) => { if (activeEls.length > 0) { 
-                        const index = activeEls[0].index; 
-                        if (modalChartState.view === 'year') { modalChartState.year = parseInt(labels[index]); modalChartState.view = 'month'; updateModalCharts(); } 
-                        else if (modalChartState.view === 'month') { modalChartState.month = index; modalChartState.view = 'day'; updateModalCharts(); } 
-                    } },
-                    onHover: (e, els) => e.native.target.style.cursor = els[0] ? 'pointer' : 'default'
+                breadcrumb = `<span class="text-[var(--text-main)]">รายปี</span>`;
+                if (modalChartState.subView === 'trend') {
+                    labelText = `รวม (${unit})`;
+                    const data = filterAndSum(
+                        i => true, 
+                        i => parseDate(i['วันที่'])?.getFullYear()
+                    );
+                    labels = Object.keys(data).sort(); values = labels.map(k => data[k]);
+                } else {
+                    // Top 10 Machines
+                    labelText = '10 อันดับสูงสุด';
+                    const data = filterAndSum(i => true, i => i['รหัสรถ']);
+                    const sorted = Object.entries(data).sort(([,a], [,b]) => b - a).slice(0, 10);
+                    labels = sorted.map(k => k[0]); values = sorted.map(k => k[1]);
                 }
-            });
-        }
-
-        function renderModalMaintChart() {
-            const code = modalChartState.machineCode;
-            const machineMaint = appData.maintenance.filter(m => m['รหัสรถ'] === code);
-            const titleElem = document.getElementById('modal-maint-title');
-            const valElem = document.getElementById('val-modal-maint');
-            
-            let labels = [], data = [], color = getCssVar('--status-purple'), total = 0;
-
-            // Logic mirroring Fuel Chart
-             if (modalChartState.view === 'year') {
-                if(titleElem) titleElem.innerText = `ค่าซ่อม (รายปี)`;
-                const grouped = {}; machineMaint.forEach(item => { const d = parseDate(item['วันที่']); if (d) { const val = parseFloat(item['ค่าซ่อมบำรุง'])||0; grouped[d.getFullYear()] = (grouped[d.getFullYear()] || 0) + val; total += val; } });
-                labels = Object.keys(grouped).sort(); data = labels.map(y => grouped[y]);
             } else if (modalChartState.view === 'month') {
-                if (!modalChartState.year) { const years = [...new Set(machineMaint.map(i => parseDate(i['วันที่'])?.getFullYear()).filter(y => y))].sort((a,b) => b-a); modalChartState.year = years.length > 0 ? years[0] : new Date().getFullYear(); }
-                if(titleElem) titleElem.innerText = `ค่าซ่อม (ปี ${modalChartState.year})`;
-                const monthsTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                const grouped = new Array(12).fill(0); machineMaint.forEach(item => { const d = parseDate(item['วันที่']); if (d && d.getFullYear() === modalChartState.year) { const val = parseFloat(item['ค่าซ่อมบำรุง'])||0; grouped[d.getMonth()] += val; total += val; } });
-                labels = monthsTH; data = grouped; 
+                breadcrumb = `${modalChartState.year} > <span class="text-[var(--text-main)]">รายเดือน</span>`;
+                if (modalChartState.subView === 'trend') {
+                    labelText = `รวม (${unit})`;
+                    const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                    const data = filterAndSum(
+                        i => parseDate(i['วันที่'])?.getFullYear() === modalChartState.year,
+                        i => parseDate(i['วันที่'])?.getMonth()
+                    );
+                    labels = months; values = new Array(12).fill(0).map((_, i) => data[i] || 0);
+                } else {
+                    labelText = `10 อันดับสูงสุด (${modalChartState.year})`;
+                    const data = filterAndSum(i => parseDate(i['วันที่'])?.getFullYear() === modalChartState.year, i => i['รหัสรถ']);
+                    const sorted = Object.entries(data).sort(([,a], [,b]) => b - a).slice(0, 10);
+                    labels = sorted.map(k => k[0]); values = sorted.map(k => k[1]);
+                }
             } else if (modalChartState.view === 'day') {
                 const mName = new Date(modalChartState.year, modalChartState.month).toLocaleString('th-TH', { month: 'short' });
-                if(titleElem) titleElem.innerText = `ค่าซ่อม (${mName} ${modalChartState.year})`;
-                const daysInMonth = new Date(modalChartState.year, modalChartState.month + 1, 0).getDate();
-                const grouped = new Array(daysInMonth).fill(0); machineMaint.forEach(item => { const d = parseDate(item['วันที่']); if (d && d.getFullYear() === modalChartState.year && d.getMonth() === modalChartState.month) { const val = parseFloat(item['ค่าซ่อมบำรุง'])||0; grouped[d.getDate() - 1] += val; total += val; } });
-                labels = Array.from({length: daysInMonth}, (_, i) => i + 1); data = grouped;
+                breadcrumb = `${modalChartState.year} > ${mName} > <span class="text-[var(--text-main)]">รายวัน</span>`;
+                if (modalChartState.subView === 'trend') {
+                    labelText = `รวม (${unit})`;
+                    const daysInMonth = new Date(modalChartState.year, modalChartState.month + 1, 0).getDate();
+                    const data = filterAndSum(
+                        i => parseDate(i['วันที่'])?.getFullYear() === modalChartState.year && parseDate(i['วันที่'])?.getMonth() === modalChartState.month,
+                        i => parseDate(i['วันที่'])?.getDate()
+                    );
+                    labels = Array.from({length: daysInMonth}, (_, i) => i + 1); values = labels.map(d => data[d] || 0);
+                } else {
+                     labelText = `10 อันดับสูงสุด (${mName})`;
+                    const data = filterAndSum(
+                        i => parseDate(i['วันที่'])?.getFullYear() === modalChartState.year && parseDate(i['วันที่'])?.getMonth() === modalChartState.month, 
+                        i => i['รหัสรถ']
+                    );
+                    const sorted = Object.entries(data).sort(([,a], [,b]) => b - a).slice(0, 10);
+                    labels = sorted.map(k => k[0]); values = sorted.map(k => k[1]);
+                }
             }
 
-            if(valElem) valElem.innerText = `${formatNumber(total)} บ.`;
-
-            if (modalMaintChartInstance) modalMaintChartInstance.destroy();
+            // Update DOM Elements
+            document.getElementById('modal-chart-breadcrumb').innerHTML = breadcrumb;
+            document.getElementById('modal-chart-val').innerText = formatNumber(total) + ' ' + unit;
+            document.getElementById('modal-chart-val').style.color = modalChartState.dataType === 'fuel' ? getCssVar('--safety-yellow') : getCssVar('--status-purple');
             
-            modalMaintChartInstance = new Chart(document.getElementById('modalMaintChart'), {
-                type: 'line', 
-                data: { 
-                    labels: labels, 
-                    datasets: [{ 
-                        label: 'บาท', 
-                        data: data, 
-                        borderColor: color, 
-                        borderWidth: 2, 
-                        pointRadius: 2, 
-                        tension: 0.4 
-                    }] 
+            // Toggle Back Button
+            const backBtn = document.getElementById('modal-chart-back');
+            if(backBtn) backBtn.classList.toggle('hidden', modalChartState.view === 'year');
+
+            // Render Chart
+            if (modalChartInstance) modalChartInstance.destroy();
+            const ctx = document.getElementById('modalChart').getContext('2d');
+            
+            modalChartInstance = new Chart(ctx, {
+                type: 'bar', // Force Bar Chart for both
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: unit,
+                        data: values,
+                        backgroundColor: colorFunc(ctx),
+                        borderRadius: 2,
+                        borderWidth: 1,
+                        borderColor: getCssVar('--bg-body'),
+                        hoverBackgroundColor: getCssVar('--text-main'),
+                        hoverBorderColor: colorMain
+                    }]
                 },
-                options: { 
-                    plugins: { legend: { display: false } }, 
-                    scales: { x: { display: true, ticks: { color: getCssVar('--text-muted'), font: { size: 9 } }, grid: { display: false } }, y: { display: true, ticks: { color: getCssVar('--text-muted'), font: { size: 9 } }, grid: { color: getCssVar('--chart-grid') } } },
-                    onClick: (e, activeEls) => { if (activeEls.length > 0) { 
-                        const index = activeEls[0].index; 
-                        if (modalChartState.view === 'year') { modalChartState.year = parseInt(labels[index]); modalChartState.view = 'month'; updateModalCharts(); } 
-                        else if (modalChartState.view === 'month') { modalChartState.month = index; modalChartState.view = 'day'; updateModalCharts(); } 
-                    } },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: getCssVar('--bg-panel'), 
+                            titleColor: colorMain, 
+                            bodyColor: getCssVar('--text-main'), 
+                            borderColor: getCssVar('--border-color'), 
+                            borderWidth: 1, 
+                            titleFont: {family: 'Prompt'},
+                            callbacks: { label: (c) => c.parsed.y.toLocaleString() + ' ' + unit }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: getCssVar('--chart-grid'), borderDash: [2, 2] }, ticks: { color: getCssVar('--chart-text'), font: {family: 'Prompt', size: 9} } },
+                        x: { grid: { display: false }, ticks: { color: getCssVar('--chart-text'), font: {family: 'Prompt', size: 9} } }
+                    },
+                    onClick: (e, activeEls) => { 
+                        if (activeEls.length > 0) {
+                            const index = activeEls[0].index;
+                            if(modalChartState.subView === 'top10') return; // No drill down on Top 10 bar
+
+                            if (modalChartState.view === 'year') { 
+                                modalChartState.year = parseInt(labels[index]); 
+                                modalChartState.view = 'month'; 
+                                updateModalCharts(); 
+                            } 
+                            else if (modalChartState.view === 'month') { 
+                                modalChartState.month = index; 
+                                modalChartState.view = 'day'; 
+                                updateModalCharts(); 
+                            }
+                            else if (modalChartState.view === 'day') {
+                                const day = parseInt(labels[index]);
+                                showDayDetails(day);
+                            }
+                        }
+                    },
                     onHover: (e, els) => e.native.target.style.cursor = els[0] ? 'pointer' : 'default'
                 }
             });
@@ -899,7 +1231,9 @@
             document.getElementById('chart-home-btn').addEventListener('click', () => { chartState.selectedMachine = 'ALL'; document.getElementById('machine-select').value = 'ALL'; resetChartToYear(); });
             document.querySelectorAll('.toggle-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                    // Only for main chart buttons
+                    if(e.target.id.startsWith('modal')) return;
+                    document.querySelectorAll('#view-toggles .toggle-btn, #project-toggles .toggle-btn').forEach(b => b.classList.remove('active'));
                     e.target.classList.add('active'); chartState.subView = e.target.dataset.view; updateChart();
                 });
             });
@@ -975,7 +1309,7 @@
         
         // Helper for new dynamic buttons
         function setSubView(view, btn) {
-             document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+             document.querySelectorAll('#view-toggles .toggle-btn, #project-toggles .toggle-btn').forEach(b => b.classList.remove('active'));
              btn.classList.add('active');
              chartState.subView = view;
              updateChart();
