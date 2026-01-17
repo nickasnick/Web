@@ -807,6 +807,16 @@
             </div>`;
         }
 
+        function safelyDestroyChart(chartInstance) {
+            if (chartInstance) {
+                try {
+                    chartInstance.destroy();
+                } catch (e) {
+                    console.warn("Chart destroy failed", e);
+                }
+            }
+        }
+
         // --- Detail View (Machine) ---
         function showMachineDetails(code, initialContext = {}) {
             const machine = appData.machines.find(m => m['รหัส'] === code);
@@ -816,12 +826,19 @@
             document.getElementById('modal-filter-bar').classList.add('hidden');
             document.getElementById('modal-title').innerText = `รายละเอียด: ${code}`;
             
+            safelyDestroyChart(modalChartInstance);
+            modalChartInstance = null;
+
+            // Determine initial data type based on current graph mode or default to fuel
+            const initialDataType = (currentGraphMode === 'maintenance') ? 'maintenance' : 'fuel';
+
             modalChartState = { 
                 id: code, type: 'machine', 
                 view: initialContext.view || 'year', 
                 year: initialContext.year || null, 
                 month: initialContext.month || null,
-                dataType: 'fuel', subView: 'trend', machineFilter: 'ALL'
+                dataType: initialDataType, 
+                subView: 'trend', machineFilter: 'ALL'
             };
             
             document.getElementById('modal-body').innerHTML = `
@@ -842,7 +859,7 @@
                             <div class="col-span-2 border-t border-[var(--border-color)] pt-2 mt-1"><span class="text-[var(--text-muted)] block">หมายเหตุ</span> <div class="text-[var(--text-main)]">${machine['หมายเหตุ'] || '-'}</div></div>
                         </div>
                     </div>
-                    ${generateModalChartsHTML(false)}
+                    ${generateModalChartsHTML(false, '', initialDataType)}
                 </div>`;
             setTimeout(() => { updateModalCharts(); }, 50);
         }
@@ -857,10 +874,19 @@
             document.getElementById('modal-filter-bar').classList.add('hidden');
             document.getElementById('modal-title').innerText = `โครงการ: ${projectName}`;
             
+            safelyDestroyChart(modalChartInstance);
+            modalChartInstance = null;
+
+            // Default to fuel, but if user was viewing maintenance project graph, maybe switch? 
+            // For now default to fuel or inherit logic similarly if needed.
+            // But let's stick to 'fuel' default for projects as standard or use same logic
+            const initialDataType = (currentGraphMode === 'maintenance') ? 'maintenance' : 'fuel';
+
             modalChartState = { 
                 id: projectName, type: 'project', 
                 view: 'year', year: null, month: null,
-                dataType: 'fuel', subView: 'trend', machineFilter: 'ALL'
+                dataType: initialDataType, 
+                subView: 'trend', machineFilter: 'ALL'
             };
             
             // Generate Machine Filter Options for Project
@@ -888,12 +914,12 @@
                         </div>
                     </div>
                     
-                    ${generateModalChartsHTML(true, machineOptions)}
+                    ${generateModalChartsHTML(true, machineOptions, initialDataType)}
                 </div>`;
             setTimeout(() => { updateModalCharts(); }, 50);
         }
 
-        function generateModalChartsHTML(isProject, machineOptions = '') {
+        function generateModalChartsHTML(isProject, machineOptions = '', activeType = 'fuel') {
             const filterHtml = isProject ? `
                 <div class="relative group w-full sm:w-auto">
                     <select id="modal-machine-select" onchange="setModalMachineFilter(this.value)" class="appearance-none bg-[var(--bg-body)] border border-[var(--border-color)] text-[var(--text-main)] py-1 px-3 pr-8 rounded font-mono text-[10px] focus:outline-none focus:border-[var(--safety-yellow)] w-full sm:w-40 cursor-pointer">
@@ -904,16 +930,25 @@
                     </div>
                 </div>` : '';
             
-            // Hide Top 10 for Single Machine View (as it only has 1 machine)
+            // Hide Top 10 for Single Machine View
             const top10Style = !isProject ? 'style="display:none"' : '';
+
+            // Set button classes based on activeType
+            const fuelBtnClass = activeType === 'fuel' 
+                ? "px-3 py-1 text-xs rounded font-bold transition-all bg-[var(--safety-yellow)] text-black shadow-sm"
+                : "px-3 py-1 text-xs rounded font-bold transition-all text-[var(--text-muted)] hover:text-[var(--text-main)]";
+            
+            const maintBtnClass = activeType === 'maintenance'
+                ? "px-3 py-1 text-xs rounded font-bold transition-all bg-[var(--status-purple)] text-white shadow-sm"
+                : "px-3 py-1 text-xs rounded font-bold transition-all text-[var(--text-muted)] hover:text-[var(--text-main)]";
 
             return `
                 <div class="bg-[var(--bg-body)] p-3 rounded border border-[var(--border-color)]">
                     <div class="flex flex-col gap-3 mb-3">
                         <div class="flex justify-between items-center">
                              <div class="flex bg-[var(--bg-panel)] rounded p-0.5 border border-[var(--border-color)]">
-                                <button onclick="setModalDataType('fuel')" id="modal-btn-fuel" class="px-3 py-1 text-xs rounded font-bold transition-all bg-[var(--safety-yellow)] text-black">สถิติน้ำมัน</button>
-                                <button onclick="setModalDataType('maintenance')" id="modal-btn-maint" class="px-3 py-1 text-xs rounded font-bold transition-all text-[var(--text-muted)] hover:text-[var(--text-main)]">ค่าซ่อมบำรุง</button>
+                                <button onclick="setModalDataType('fuel')" id="modal-btn-fuel" class="${fuelBtnClass}">สถิติน้ำมัน</button>
+                                <button onclick="setModalDataType('maintenance')" id="modal-btn-maint" class="${maintBtnClass}">ค่าซ่อมบำรุง</button>
                              </div>
                              <div class="flex items-center gap-2">
                                 <span id="modal-chart-val" class="text-xs font-mono font-bold text-[var(--safety-yellow)]"></span>
@@ -1038,10 +1073,15 @@
                 modalChartState.view = 'year';
                 modalChartState.year = null;
             }
-            updateModalCharts();
+            // Reset to Trend when going back up
+            setModalSubView('trend');
         }
 
         function updateModalCharts() {
+            // Check canvas existence
+            const canvas = document.getElementById('modalChart');
+            if (!canvas) return;
+
             // Determine Data Source
             let dataSource = modalChartState.dataType === 'fuel' ? appData.fuel : appData.maintenance;
             let valKey = modalChartState.dataType === 'fuel' ? 'ปริมาณ(ลิตร)' : 'ค่าซ่อมบำรุง';
@@ -1084,6 +1124,10 @@
             const filterAndSum = (filterFn, groupFn) => {
                 const grouped = {};
                 filteredData.forEach(item => {
+                    // Check if date is valid before processing to prevent undefined keys
+                    const d = parseDate(item['วันที่']);
+                    if (!d) return; 
+
                     if (filterFn(item)) {
                         const val = parseFloat(item[valKey]) || 0;
                         total += val;
@@ -1159,8 +1203,10 @@
             if(backBtn) backBtn.classList.toggle('hidden', modalChartState.view === 'year');
 
             // Render Chart
-            if (modalChartInstance) modalChartInstance.destroy();
-            const ctx = document.getElementById('modalChart').getContext('2d');
+            safelyDestroyChart(modalChartInstance);
+            modalChartInstance = null;
+            
+            const ctx = canvas.getContext('2d');
             
             modalChartInstance = new Chart(ctx, {
                 type: 'bar', // Force Bar Chart for both
@@ -1198,22 +1244,26 @@
                     onClick: (e, activeEls) => { 
                         if (activeEls.length > 0) {
                             const index = activeEls[0].index;
-                            if(modalChartState.subView === 'top10') return; // No drill down on Top 10 bar
+                            
+                            // Wrap in setTimeout to avoid destroying chart during event handling
+                            setTimeout(() => {
+                                if(modalChartState.subView === 'top10') return; 
 
-                            if (modalChartState.view === 'year') { 
-                                modalChartState.year = parseInt(labels[index]); 
-                                modalChartState.view = 'month'; 
-                                updateModalCharts(); 
-                            } 
-                            else if (modalChartState.view === 'month') { 
-                                modalChartState.month = index; 
-                                modalChartState.view = 'day'; 
-                                updateModalCharts(); 
-                            }
-                            else if (modalChartState.view === 'day') {
-                                const day = parseInt(labels[index]);
-                                showDayDetails(day);
-                            }
+                                if (modalChartState.view === 'year') { 
+                                    modalChartState.year = parseInt(labels[index]); 
+                                    modalChartState.view = 'month'; 
+                                    updateModalCharts(); 
+                                } 
+                                else if (modalChartState.view === 'month') { 
+                                    modalChartState.month = index; 
+                                    modalChartState.view = 'day'; 
+                                    updateModalCharts(); 
+                                }
+                                else if (modalChartState.view === 'day') {
+                                    const day = parseInt(labels[index]);
+                                    showDayDetails(day);
+                                }
+                            }, 0);
                         }
                     },
                     onHover: (e, els) => e.native.target.style.cursor = els[0] ? 'pointer' : 'default'
@@ -1333,7 +1383,12 @@
             if (chartState.view === 'single_day') { chartState.view = 'day'; chartState.selectedDay = null; chartState.subView = 'trend'; }
             else if (chartState.view === 'day') { chartState.view = 'month'; chartState.selectedMonth = null; chartState.subView = 'trend'; }
             else if (chartState.view === 'month') { chartState.view = 'year'; chartState.selectedYear = null; chartState.subView = 'trend'; }
-            // document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn-trend').classList.add('active');
+            
+            // Fix: Update visual button state to match 'trend'
+            document.querySelectorAll('#view-toggles .toggle-btn').forEach(b => b.classList.remove('active'));
+            const btnTrend = document.getElementById('btn-trend');
+            if (btnTrend) btnTrend.classList.add('active');
+
             updateChart();
         }
 
