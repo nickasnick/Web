@@ -866,7 +866,7 @@
         }
 
         // --- Detail View (Project) ---
-        function showProjectDetails(projectName) {
+        function showProjectDetails(projectName, initialContext = {}) {
             const project = appData.projects[projectName];
             if (!project) return;
             const modal = document.getElementById('modal');
@@ -886,7 +886,7 @@
             // Bug fix: Explicitly check for undefined to handle month 0 (January) correctly
             modalChartState = { 
                 id: projectName, type: 'project', 
-                view: 'year', 
+                view: initialContext.view || 'year', 
                 year: (initialContext.year !== undefined) ? initialContext.year : null, 
                 month: (initialContext.month !== undefined) ? initialContext.month : null,
                 dataType: initialDataType, 
@@ -1610,8 +1610,18 @@
         }
 
         function handleChartClick(index, labels) {
-            // Project Mode: No drill down for now
-            if(currentGraphMode === 'project') return;
+            
+            // New Feature: Main Chart Project Click
+            if(currentGraphMode === 'project') {
+                const projectName = labels[index];
+                // Debounce simple
+                if(window.isNavigating) return;
+                window.isNavigating = true;
+                setTimeout(() => { window.isNavigating = false; }, 500);
+                
+                showProjectDetails(projectName);
+                return;
+            }
 
             // Unified Click Logic for both Fuel & Maintenance
             if (chartState.subView === 'top10') {
