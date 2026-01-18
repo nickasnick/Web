@@ -103,6 +103,13 @@
             clip-path: polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
             box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
             transition: all 0.2s ease;
+            
+            /* --- Layout Fixes for Equal Height --- */
+            height: 100%;
+            min-height: 120px; /* Force minimum height consistent with Alert card */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .industrial-card::after {
@@ -370,10 +377,10 @@
         <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
             <!-- 1. All Machines -->
             <div class="industrial-card card-interactive status-blue p-3 cursor-pointer" onclick="openModal('all')">
-                <div class="flex justify-between items-start">
+                <div class="flex justify-between items-start flex-grow">
                     <div>
                         <div class="text-[var(--text-muted)] text-[10px] font-bold tracking-wider mb-1">เครื่องจักรทั้งหมด</div>
-                        <div class="text-2xl font-black text-[var(--text-main)] stat-value" id="total-machines">-</div>
+                        <div class="text-lg sm:text-xl xl:text-2xl font-black text-[var(--text-main)] stat-value" id="total-machines">-</div>
                     </div>
                     <i class="fas fa-truck-monster text-[var(--status-blue)] opacity-50 text-xl"></i>
                 </div>
@@ -381,8 +388,8 @@
             
             <!-- 2. MERGED ALERTS CARD -->
             <div class="industrial-card card-interactive status-red p-3 cursor-pointer" onclick="openModal('alerts')">
-                <div class="flex justify-between items-start">
-                    <div class="w-full">
+                <div class="flex justify-between items-start flex-grow h-full">
+                    <div class="w-full h-full flex flex-col justify-between">
                         <div class="text-[var(--text-muted)] text-[10px] font-bold tracking-wider mb-1 flex items-center gap-1">
                             <i class="fas fa-bell animate-pulse text-[var(--safety-orange)]"></i> แจ้งเตือน (ALERTS)
                         </div>
@@ -402,10 +409,11 @@
             
             <!-- 3. Fuel -->
             <div id="card-fuel" class="industrial-card card-interactive status-green p-3 cursor-pointer card-selected" onclick="switchGraphMode('fuel')">
-                <div class="flex justify-between items-start">
+                <div class="flex justify-between items-start flex-grow">
                     <div class="overflow-hidden">
                         <div class="text-[var(--status-green)] text-[10px] font-bold tracking-wider mb-1" id="label-total-fuel">ข้อมูลน้ำมัน</div>
-                        <div class="text-2xl font-black text-[var(--text-main)] stat-value truncate" id="total-fuel">- ลิตร</div>
+                        <!-- Updated class for responsive font size -->
+                        <div class="text-lg sm:text-xl xl:text-2xl font-black text-[var(--text-main)] stat-value truncate" id="total-fuel">-</div>
                     </div>
                     <i class="fas fa-gas-pump text-[var(--status-green)] opacity-50 text-xl"></i>
                 </div>
@@ -413,10 +421,11 @@
 
             <!-- 4. Maintenance -->
             <div id="card-maintenance" class="industrial-card card-interactive status-purple p-3 cursor-pointer" onclick="switchGraphMode('maintenance')">
-                <div class="flex justify-between items-start">
+                <div class="flex justify-between items-start flex-grow">
                     <div class="overflow-hidden">
                         <div class="text-[var(--status-purple)] text-[10px] font-bold tracking-wider mb-1" id="label-total-maint">ค่าซ่อมบำรุง</div>
-                        <div class="text-2xl font-black text-[var(--text-main)] stat-value truncate" id="total-maintenance">...</div>
+                        <!-- Updated class for responsive font size -->
+                        <div class="text-lg sm:text-xl xl:text-2xl font-black text-[var(--text-main)] stat-value truncate" id="total-maintenance">...</div>
                     </div>
                     <i class="fas fa-wrench text-[var(--status-purple)] opacity-50 text-xl"></i>
                 </div>
@@ -424,54 +433,67 @@
 
              <!-- 5. Project Card -->
             <div id="card-project" class="industrial-card card-interactive status-orange p-3 cursor-pointer" onclick="openModal('project')">
-                <div class="flex justify-between items-start">
+                <div class="flex justify-between items-start flex-grow">
                     <div class="overflow-hidden">
                         <div class="text-[var(--status-orange)] text-[10px] font-bold tracking-wider mb-1">สรุปโครงการ</div>
-                        <div class="text-2xl font-black text-[var(--text-main)] stat-value" id="total-projects">-</div>
+                        <div class="text-lg sm:text-xl xl:text-2xl font-black text-[var(--text-main)] stat-value" id="total-projects">-</div>
                     </div>
                     <i class="fas fa-building text-[var(--status-orange)] opacity-50 text-xl"></i>
                 </div>
             </div>
         </div>
 
-        <!-- Main Chart Section -->
-        <div class="blueprint-container p-4 rounded-lg shadow-md min-h-[450px] flex flex-col">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3 border-b border-[var(--border-color)] pb-3">
-                <div>
-                    <div class="text-[var(--status-blue)] font-mono text-[10px] tracking-widest mb-0.5">// การแสดงผลข้อมูลกราฟ</div>
-                    <h2 class="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
-                        <i class="fas fa-chart-bar text-[var(--safety-yellow)]" id="chart-icon"></i>
-                        <span id="chart-title">สถิติน้ำมันเชื้อเพลิง</span>
-                    </h2>
-                    <div id="chart-breadcrumb" class="text-xs text-[var(--text-muted)] mt-1 font-mono flex items-center gap-2 bg-[var(--bg-body)] px-2 py-0.5 rounded border border-[var(--border-color)] inline-flex">
-                        <span class="w-1.5 h-1.5 bg-[var(--safety-yellow)] rounded-full animate-pulse inline-block"></span>
-                        พร้อมทำงาน
-                    </div>
-                </div>
-                
-                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                    <!-- Toggle Buttons (Always visible) -->
-                    <div id="view-toggles" class="bg-[var(--bg-body)] p-0.5 border border-[var(--border-color)] rounded flex gap-0.5">
-                        <button class="construct-btn toggle-btn text-xs active" id="btn-trend" data-view="trend">แนวโน้ม</button>
-                        <button class="construct-btn toggle-btn text-xs" id="btn-top10" data-view="top10">10 อันดับ</button>
+        <!-- Main Chart Section (Split Grid) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            
+            <!-- Left: Trend Chart -->
+            <div class="blueprint-container p-4 rounded-lg shadow-md min-h-[450px] flex flex-col lg:col-span-2">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3 border-b border-[var(--border-color)] pb-3">
+                    <div>
+                        <div class="text-[var(--status-blue)] font-mono text-[10px] tracking-widest mb-0.5">// กราฟแสดงแนวโน้ม (TIMELINE)</div>
+                        <h2 class="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+                            <i class="fas fa-chart-line text-[var(--safety-yellow)]" id="chart-icon"></i>
+                            <span id="chart-title">สถิติน้ำมันเชื้อเพลิง</span>
+                        </h2>
+                        <div id="chart-breadcrumb" class="text-xs text-[var(--text-muted)] mt-1 font-mono flex items-center gap-2 bg-[var(--bg-body)] px-2 py-0.5 rounded border border-[var(--border-color)] inline-flex">
+                            <span class="w-1.5 h-1.5 bg-[var(--safety-yellow)] rounded-full animate-pulse inline-block"></span>
+                            พร้อมทำงาน
+                        </div>
                     </div>
                     
-                    <button id="chart-home-btn" class="hidden construct-btn" title="หน้าแรก"><i class="fas fa-home"></i></button>
-                    <button id="chart-back-btn" class="hidden construct-btn" title="ย้อนกลับ"><i class="fas fa-undo"></i> ย้อนกลับ</button>
-                    
-                    <div class="relative group w-full sm:w-auto" id="machine-select-container">
-                        <select id="machine-select" class="appearance-none bg-[var(--bg-body)] border border-[var(--border-color)] text-[var(--text-main)] py-1.5 px-3 pr-8 rounded font-mono text-xs focus:outline-none focus:border-[var(--safety-yellow)] w-full sm:w-48 cursor-pointer">
-                            <option value="ALL">>> เครื่องจักรทั้งหมด</option>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-muted)]">
-                            <i class="fas fa-chevron-down text-[10px]"></i>
+                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        <button id="chart-home-btn" class="hidden construct-btn" title="หน้าแรก"><i class="fas fa-home"></i></button>
+                        <button id="chart-back-btn" class="hidden construct-btn" title="ย้อนกลับ"><i class="fas fa-undo"></i> ย้อนกลับ</button>
+                        
+                        <div class="relative group w-full sm:w-auto" id="machine-select-container">
+                            <select id="machine-select" class="appearance-none bg-[var(--bg-body)] border border-[var(--border-color)] text-[var(--text-main)] py-1.5 px-3 pr-8 rounded font-mono text-xs focus:outline-none focus:border-[var(--safety-yellow)] w-full sm:w-48 cursor-pointer">
+                                <option value="ALL">>> เครื่องจักรทั้งหมด</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-muted)]">
+                                <i class="fas fa-chevron-down text-[10px]"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
+                <div class="relative flex-grow w-full min-h-[350px]">
+                    <canvas id="trendChart"></canvas>
+                </div>
             </div>
-            <div class="relative flex-grow w-full min-h-[350px]">
-                <canvas id="mainChart"></canvas>
+
+            <!-- Right: Top 10 Chart -->
+            <div class="blueprint-container p-4 rounded-lg shadow-md min-h-[450px] flex flex-col">
+                <div class="mb-4 border-b border-[var(--border-color)] pb-3">
+                    <div class="text-[var(--status-orange)] font-mono text-[10px] tracking-widest mb-0.5">// 10 อันดับสูงสุด (RANKING)</div>
+                    <h2 class="text-xl font-bold text-[var(--text-main)]">
+                        TOP 10
+                    </h2>
+                    <div class="text-xs text-[var(--text-muted)] mt-1">อิงตามช่วงเวลาในกราฟซ้ายมือ</div>
+                </div>
+                <div class="relative flex-grow w-full min-h-[350px]">
+                    <canvas id="rankChart"></canvas>
+                </div>
             </div>
+            
         </div>
 
     </div>
@@ -492,7 +514,7 @@
 
         let appData = { machines: [], fuel: [], maintenance: [], alerts: { expired: [], warning: [], all: [] } };
         let currentGraphMode = 'fuel'; 
-        let chartState = { instance: null, view: 'year', subView: 'trend', selectedMachine: 'ALL', selectedProject: 'ALL', selectedYear: null, selectedMonth: null, selectedDay: null };
+        let chartState = { trendInstance: null, rankInstance: null, view: 'year', selectedMachine: 'ALL', selectedProject: 'ALL', selectedYear: null, selectedMonth: null, selectedDay: null };
         let lastModalType = 'all'; 
         
         let modalFuelChartInstance = null;
@@ -546,7 +568,7 @@
             Chart.defaults.color = getCssVar('--chart-text');
             Chart.defaults.borderColor = getCssVar('--chart-grid');
             if(currentGraphMode === 'fuel') updateChart();
-            else renderMaintenanceChart();
+            else updateChart(); // Update both charts
             
             if(document.getElementById('modal').classList.contains('show')) {
                  if (lastModalType === 'project' && modalChartState.projectName) { renderModalProjectChart(); }
@@ -554,23 +576,24 @@
             }
         }
 
-        // --- Handle Chart Click ---
-        function handleChartClick(index, labels) {
-            if (chartState.subView === 'top10') {
-                const machineCode = labels[index];
-                let context = { view: 'year' }; 
-                if (chartState.view === 'month') { context = { view: 'month', year: chartState.selectedYear }; } 
-                else if (chartState.view === 'day' || chartState.view === 'single_day') { context = { view: 'day', year: chartState.selectedYear, month: chartState.selectedMonth }; }
-                showMachineDetails(machineCode, context);
-                return; 
-            }
+        // --- Handle Chart Click (Drill down) ---
+        function handleTrendClick(index, labels) {
             if (chartState.view === 'year') {
-                if (chartState.subView === 'trend') { chartState.selectedYear = parseInt(labels[index]); chartState.view = 'month'; updateChart(); }
+                chartState.selectedYear = parseInt(labels[index]); chartState.view = 'month'; updateChart(); 
             } else if (chartState.view === 'month') {
-                if (chartState.subView === 'trend') { chartState.selectedMonth = index; chartState.view = 'day'; updateChart(); }
-            } else if (chartState.view === 'day') {
-                if (chartState.subView === 'trend' && chartState.selectedMachine === 'ALL') { chartState.selectedDay = index + 1; chartState.view = 'single_day'; chartState.subView = 'top10'; updateChart(); }
+                chartState.selectedMonth = index; chartState.view = 'day'; updateChart(); 
+            } else if (chartState.view === 'day' && chartState.selectedMachine === 'ALL') {
+                 // Option: Drill down to single day details or just stay
+                 chartState.selectedDay = index + 1; chartState.view = 'single_day'; updateChart();
             }
+        }
+        
+        function handleRankClick(index, labels) {
+            const machineCode = labels[index];
+            let context = { view: 'year' }; 
+            if (chartState.view === 'month') { context = { view: 'month', year: chartState.selectedYear }; } 
+            else if (chartState.view === 'day' || chartState.view === 'single_day') { context = { view: 'day', year: chartState.selectedYear, month: chartState.selectedMonth }; }
+            showMachineDetails(machineCode, context);
         }
 
         // --- Reset Modal Chart (Defined Globally) ---
@@ -585,14 +608,6 @@
             } else {
                 updateModalCharts();
             }
-        }
-        
-        // --- Button Setters ---
-        function setMainView(subView, btn) {
-            chartState.subView = subView;
-            document.querySelectorAll('#view-toggles .construct-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            updateChart();
         }
 
         // --- App Init ---
@@ -675,10 +690,10 @@
              });
              
              const elMaint = document.getElementById('total-maintenance');
-             if(elMaint) elMaint.innerText = formatNumber(totalCost) + " บาท";
+             if(elMaint) elMaint.innerText = formatNumber(totalCost); // Removed units
 
              const elFuel = document.getElementById('total-fuel');
-             if(elFuel) elFuel.innerText = formatNumber(totalFuel) + " ลิตร";
+             if(elFuel) elFuel.innerText = formatNumber(totalFuel); // Removed units
              
              const projects = new Set();
              appData.fuel.forEach(f => { if(f['โครงการ']) projects.add(f['โครงการ']); });
@@ -786,20 +801,28 @@
                  `;
              });
              
-             html += `</div></body></html>`;
+             html += `</div>
+             <script>
+                window.onload = function() { setTimeout(function(){ window.print(); }, 1000); }
+             <\/script>
+             </body></html>`;
              printWindow.document.write(html);
              printWindow.document.close();
         }
         
+        // Improved Camera Handling
+        let isQrScanning = false;
         function openQRScanner() {
             const modal = document.getElementById('qr-modal');
             modal.classList.add('show');
             
-            // Initialize Scanner
             if (!html5QrCode) {
                  html5QrCode = new Html5Qrcode("qr-reader");
             }
             
+            if(isQrScanning) return;
+            isQrScanning = true;
+
             html5QrCode.start(
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -809,7 +832,6 @@
                     closeQRModal(); // Stop scanning
                     
                     // Show Details
-                    // Check if machine exists
                     const machine = appData.machines.find(m => m['รหัส'] === decodedText);
                     if(machine) {
                         showMachineDetails(decodedText);
@@ -821,19 +843,20 @@
                     // parse error, ignore
                 }
             ).catch(err => {
+                isQrScanning = false;
                 console.error("Error starting scanner", err);
-                document.getElementById('qr-reader').innerHTML = `<div class="text-red-500">ไม่สามารถเปิดกล้องได้ (โปรดตรวจสอบสิทธิ์หรือใช้ HTTPS)</div>`;
+                document.getElementById('qr-reader').innerHTML = `<div class="text-red-500 text-center p-4">ไม่สามารถเปิดกล้องได้ (โปรดตรวจสอบสิทธิ์หรือใช้ HTTPS)</div>`;
             });
         }
         
         function closeQRModal() {
             const modal = document.getElementById('qr-modal');
             modal.classList.remove('show');
-            if(html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then((ignore) => {
-                  // stopped
+            if(html5QrCode && isQrScanning) {
+                html5QrCode.stop().then(() => {
+                    isQrScanning = false;
                 }).catch((err) => {
-                  // Stop failed, handle it.
+                    isQrScanning = false;
                 });
             }
         }
@@ -1026,16 +1049,16 @@
                     <!-- Machine Info -->
                     <div class="bg-[var(--bg-body)] p-3 rounded border border-[var(--border-color)]">
                          <div class="grid grid-cols-2 gap-3 text-xs">
-                            <div><span class="text-[var(--text-muted)] block">ทะเบียน</span> <div class="text-[var(--text-main)] font-bold text-sm">${machine['ทะเบียน'] || '-'}</div></div>
-                            <div><span class="text-[var(--text-muted)] block">ประเภท</span> <div class="text-[var(--text-main)]">${machine['ประเภทรถ'] || '-'}</div></div>
-                            <div><span class="text-[var(--text-muted)] block">ยี่ห้อ</span> <div class="text-[var(--text-main)]">${machine['ยี่ห้อรถ'] || '-'}</div></div>
-                            <div><span class="text-[var(--text-muted)] block">เลขเครื่อง</span> <div class="text-[var(--text-main)]">${machine['เลขเครื่อง'] || '-'}</div></div>
-                            <div><span class="text-[var(--text-muted)] block">เลขตัวรถ</span> <div class="text-[var(--text-main)]">${machine['เลขตัวรถ'] || '-'}</div></div>
-                            <div><span class="text-[var(--text-muted)] block">กรรมสิทธิ์</span> <div class="text-[var(--text-main)]">${machine['กรรมสิทธิ์'] || '-'}</div></div>
-                            <div class="border-t border-[var(--border-color)] pt-2 mt-1 col-span-2 grid grid-cols-2 gap-3">
-                                <div><span class="text-[var(--text-muted)] block">ทะเบียนขาด</span> <div class="text-[var(--status-red)] font-bold">${machine['วันที่ทะเบียนขาด'] || '-'}</div></div>
-                                <div><span class="text-[var(--text-muted)] block">ประกันขาด</span> <div class="text-[var(--status-red)] font-bold">${machine['วันที่ประกัน+พรบ.ขาด'] || '-'}</div></div>
-                            </div>
+                           <div><span class="text-[var(--text-muted)] block">ทะเบียน</span> <div class="text-[var(--text-main)] font-bold text-sm">${machine['ทะเบียน'] || '-'}</div></div>
+                           <div><span class="text-[var(--text-muted)] block">ประเภท</span> <div class="text-[var(--text-main)]">${machine['ประเภทรถ'] || '-'}</div></div>
+                           <div><span class="text-[var(--text-muted)] block">ยี่ห้อ</span> <div class="text-[var(--text-main)]">${machine['ยี่ห้อรถ'] || '-'}</div></div>
+                           <div><span class="text-[var(--text-muted)] block">เลขเครื่อง</span> <div class="text-[var(--text-main)]">${machine['เลขเครื่อง'] || '-'}</div></div>
+                           <div><span class="text-[var(--text-muted)] block">เลขตัวรถ</span> <div class="text-[var(--text-main)]">${machine['เลขตัวรถ'] || '-'}</div></div>
+                           <div><span class="text-[var(--text-muted)] block">กรรมสิทธิ์</span> <div class="text-[var(--text-main)]">${machine['กรรมสิทธิ์'] || '-'}</div></div>
+                           <div class="border-t border-[var(--border-color)] pt-2 mt-1 col-span-2 grid grid-cols-2 gap-3">
+                               <div><span class="text-[var(--text-muted)] block">ทะเบียนขาด</span> <div class="text-[var(--status-red)] font-bold">${machine['วันที่ทะเบียนขาด'] || '-'}</div></div>
+                               <div><span class="text-[var(--text-muted)] block">ประกันขาด</span> <div class="text-[var(--status-red)] font-bold">${machine['วันที่ประกัน+พรบ.ขาด'] || '-'}</div></div>
+                           </div>
                          </div>
                     </div>
                     <!-- Unified Charts Area -->
@@ -1423,16 +1446,67 @@
         }
 
         // --- Main Chart ---
-        function setupFuelChart() { document.getElementById('chart-back-btn').addEventListener('click', goBackLevel); document.getElementById('chart-home-btn').addEventListener('click', () => { chartState.selectedMachine = 'ALL'; chartState.selectedProject = 'ALL'; document.getElementById('machine-select').value = 'ALL'; resetChartToYear(); updateAllStats(); }); document.getElementById('machine-select').addEventListener('change', (e) => { chartState.selectedMachine = e.target.value; resetChartToYear(); }); document.querySelectorAll('.toggle-btn').forEach(btn => { btn.addEventListener('click', (e) => { document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active')); e.target.classList.add('active'); chartState.subView = e.target.dataset.view; updateChart(); }); }); updateChart(); }
-        function switchGraphMode(mode) { currentGraphMode = mode; document.getElementById('card-fuel').classList.remove('card-selected'); document.getElementById('card-maintenance').classList.remove('card-selected'); if (mode === 'fuel') { document.getElementById('card-fuel').classList.add('card-selected'); document.getElementById('chart-title').innerText = 'สถิติน้ำมันเชื้อเพลิง'; } else { document.getElementById('card-maintenance').classList.add('card-selected'); document.getElementById('chart-title').innerText = 'ค่าซ่อมบำรุงรายเดือน'; } resetChartToYear(); }
-        function resetChartToYear() { chartState.view = 'year'; chartState.selectedYear = null; chartState.selectedMonth = null; chartState.selectedDay = null; chartState.subView = 'trend'; updateChart(); }
-        function goBackLevel() { if (chartState.view === 'single_day') { chartState.view = 'day'; chartState.selectedDay = null; chartState.subView = 'trend'; } else if (chartState.view === 'day') { chartState.view = 'month'; chartState.selectedMonth = null; chartState.subView = 'trend'; } else if (chartState.view === 'month') { chartState.view = 'year'; chartState.selectedYear = null; chartState.subView = 'trend'; } updateChart(); }
-        function updateChart() { renderMaintenanceChart(); } // Reuse unified render
-        function renderMaintenanceChart() { renderCanvas(); } // Just a wrapper
-        function renderCanvas() { /* ... (Same unified logic as before) ... */
-             // Re-implementing compact unified render here to save space as it's same as previous
-             const ctx = document.getElementById('mainChart').getContext('2d');
-             if (chartState.instance) chartState.instance.destroy();
+        function setupFuelChart() { 
+            document.getElementById('chart-back-btn').addEventListener('click', goBackLevel); 
+            document.getElementById('chart-home-btn').addEventListener('click', () => { 
+                chartState.selectedMachine = 'ALL'; 
+                chartState.selectedProject = 'ALL'; 
+                document.getElementById('machine-select').value = 'ALL'; 
+                resetChartToYear(); 
+                updateAllStats(); 
+            }); 
+            document.getElementById('machine-select').addEventListener('change', (e) => { 
+                chartState.selectedMachine = e.target.value; 
+                resetChartToYear(); 
+            }); 
+            // Removed toggle buttons listener since they are gone
+            updateChart(); 
+        }
+
+        function switchGraphMode(mode) { 
+            currentGraphMode = mode; 
+            document.getElementById('card-fuel').classList.remove('card-selected'); 
+            document.getElementById('card-maintenance').classList.remove('card-selected'); 
+            if (mode === 'fuel') { 
+                document.getElementById('card-fuel').classList.add('card-selected'); 
+                document.getElementById('chart-title').innerText = 'สถิติน้ำมันเชื้อเพลิง'; 
+            } else { 
+                document.getElementById('card-maintenance').classList.add('card-selected'); 
+                document.getElementById('chart-title').innerText = 'ค่าซ่อมบำรุงรายเดือน'; 
+            } 
+            resetChartToYear(); 
+        }
+
+        function resetChartToYear() { 
+            chartState.view = 'year'; 
+            chartState.selectedYear = null; 
+            chartState.selectedMonth = null; 
+            chartState.selectedDay = null; 
+            updateChart(); 
+        }
+
+        function goBackLevel() { 
+            if (chartState.view === 'single_day') { 
+                chartState.view = 'day'; 
+                chartState.selectedDay = null; 
+            } else if (chartState.view === 'day') { 
+                chartState.view = 'month'; 
+                chartState.selectedMonth = null; 
+            } else if (chartState.view === 'month') { 
+                chartState.view = 'year'; 
+                chartState.selectedYear = null; 
+            } 
+            updateChart(); 
+        }
+
+        function updateChart() { 
+            renderTrendChart(); 
+            renderRankChart();
+        }
+
+        function renderTrendChart() {
+             const ctx = document.getElementById('trendChart').getContext('2d');
+             if (chartState.trendInstance) chartState.trendInstance.destroy();
              
              let dataSource = currentGraphMode === 'fuel' ? appData.fuel : appData.maintenance;
              let valKey = currentGraphMode === 'fuel' ? 'ปริมาณ(ลิตร)' : 'ค่าซ่อมบำรุง';
@@ -1445,10 +1519,10 @@
                  return true;
              });
 
-             let labels = [], data = [], total = 0; // Added Total calc for label in chart if needed
+             let labels = [], data = [];
              
-             // Filter Helpers
-             const filterAndSum = (groupFn) => {
+             // Filter Helpers for Trend (Timeline)
+             const filterAndSumTrend = (groupFn) => {
                  const grouped = {}; 
                  dataSource.forEach(item => { 
                      const d = parseDate(item['วันที่']); 
@@ -1458,7 +1532,7 @@
                      if (chartState.view === 'day' && (d.getFullYear() !== chartState.selectedYear || d.getMonth() !== chartState.selectedMonth)) return;
                      
                      const val = parseNumber(item[valKey]);
-                     const key = groupFn(item, d);
+                     const key = groupFn(d);
                      if (key !== null) grouped[key] = (grouped[key] || 0) + val;
                  });
                  return grouped;
@@ -1468,54 +1542,83 @@
                  document.getElementById('chart-breadcrumb').innerText = "รายปี";
                  document.getElementById('chart-back-btn').classList.add('hidden');
                  document.getElementById('chart-home-btn').classList.add('hidden');
-                 if(chartState.subView === 'trend') {
-                     const d = filterAndSum((i, date) => date.getFullYear());
-                     labels = Object.keys(d).sort(); data = labels.map(k => d[k]);
-                 } else {
-                     const d = filterAndSum((i) => i['รหัสรถ']);
-                     const sorted = Object.entries(d).sort(([,a], [,b]) => b - a).slice(0, 10);
-                     labels = sorted.map(k => k[0]); data = sorted.map(k => k[1]);
-                 }
+                 
+                 const d = filterAndSumTrend((date) => date.getFullYear());
+                 labels = Object.keys(d).sort(); data = labels.map(k => d[k]);
+                 
              } else if (chartState.view === 'month') {
                  document.getElementById('chart-breadcrumb').innerText = `ปี ${chartState.selectedYear}`;
                  document.getElementById('chart-back-btn').classList.remove('hidden');
                  document.getElementById('chart-home-btn').classList.remove('hidden');
-                 if(chartState.subView === 'trend') {
-                     const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                     const d = filterAndSum((i, date) => date.getMonth());
-                     labels = months; data = new Array(12).fill(0).map((_, i) => d[i] || 0);
-                 } else {
-                     const d = filterAndSum((i) => i['รหัสรถ']);
-                     const sorted = Object.entries(d).sort(([,a], [,b]) => b - a).slice(0, 10);
-                     labels = sorted.map(k => k[0]); data = sorted.map(k => k[1]);
-                 }
-             } else if (chartState.view === 'day') {
+                 
+                 const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                 const d = filterAndSumTrend((date) => date.getMonth());
+                 labels = months; data = new Array(12).fill(0).map((_, i) => d[i] || 0);
+
+             } else if (chartState.view === 'day' || chartState.view === 'single_day') {
                  const mName = new Date(chartState.selectedYear, chartState.selectedMonth).toLocaleString('th-TH', { month: 'short' });
                  document.getElementById('chart-breadcrumb').innerText = `${mName} ${chartState.selectedYear}`;
-                 const days = new Date(chartState.selectedYear, chartState.selectedMonth + 1, 0).getDate();
-                 if(chartState.subView === 'trend') {
-                     const d = filterAndSum((i, date) => date.getDate());
-                     labels = Array.from({length: days}, (_, i) => i + 1); data = labels.map(k => d[k] || 0);
-                 } else {
-                     const d = filterAndSum((i) => i['รหัสรถ']);
-                     const sorted = Object.entries(d).sort(([,a], [,b]) => b - a).slice(0, 10);
-                     labels = sorted.map(k => k[0]); data = sorted.map(k => k[1]);
+                 if (chartState.view === 'single_day') {
+                      document.getElementById('chart-breadcrumb').innerText += ` (วันที่ ${chartState.selectedDay})`;
                  }
-             } else if (chartState.view === 'single_day') {
-                 const mName = new Date(chartState.selectedYear, chartState.selectedMonth).toLocaleString('th-TH', { month: 'long' });
-                 document.getElementById('chart-breadcrumb').innerText = `วันที่ ${chartState.selectedDay} ${mName} ${chartState.selectedYear}`;
-                 document.getElementById('chart-back-btn').classList.remove('hidden');
-                 // For single day view, force Top 10 regardless of subView
-                 const d = filterAndSum((i) => i['รหัสรถ']);
-                 const sorted = Object.entries(d).sort(([,a], [,b]) => b - a).slice(0, 10);
-                 labels = sorted.map(k => k[0]); data = sorted.map(k => k[1]);
+                 const days = new Date(chartState.selectedYear, chartState.selectedMonth + 1, 0).getDate();
+                 
+                 const d = filterAndSumTrend((date) => date.getDate());
+                 labels = Array.from({length: days}, (_, i) => i + 1); data = labels.map(k => d[k] || 0);
              }
 
-             chartState.instance = new Chart(ctx, {
+             chartState.trendInstance = new Chart(ctx, {
                  type: 'bar', data: { labels: labels, datasets: [{ label: currentGraphMode, data: data, backgroundColor: color, borderRadius: 2 }] },
                  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, 
                      scales: { x: { grid: { display: false }, ticks: { color: getCssVar('--text-muted') } }, y: { grid: { color: getCssVar('--chart-grid') }, ticks: { color: getCssVar('--text-muted') } } },
-                     onClick: (e, activeEls) => { if(activeEls.length > 0) handleChartClick(activeEls[0].index, labels); },
+                     onClick: (e, activeEls) => { if(activeEls.length > 0) handleTrendClick(activeEls[0].index, labels); },
+                     onHover: (e, els) => e.native.target.style.cursor = els[0] ? 'pointer' : 'default'
+                 }
+             });
+        }
+
+        function renderRankChart() {
+             const ctx = document.getElementById('rankChart').getContext('2d');
+             if (chartState.rankInstance) chartState.rankInstance.destroy();
+             
+             let dataSource = currentGraphMode === 'fuel' ? appData.fuel : appData.maintenance;
+             let valKey = currentGraphMode === 'fuel' ? 'ปริมาณ(ลิตร)' : 'ค่าซ่อมบำรุง';
+             // Use a slightly different color shade for Rank
+             let color = currentGraphMode === 'fuel' ? '#f59e0b' : '#9333ea'; 
+             
+             // Filter Ranking based on current view context (Year/Month) from Trend Chart state
+             dataSource = dataSource.filter(item => {
+                 if (chartState.selectedProject !== 'ALL' && item['โครงการ'] !== chartState.selectedProject) return false;
+                 // Don't filter by selectedMachine here, as we want to rank ALL machines in that period
+                 
+                 const d = parseDate(item['วันที่']);
+                 if (!d) return false;
+
+                 if (chartState.view === 'month' && d.getFullYear() !== chartState.selectedYear) return false;
+                 if ((chartState.view === 'day' || chartState.view === 'single_day') && (d.getFullYear() !== chartState.selectedYear || d.getMonth() !== chartState.selectedMonth)) return false;
+                 
+                 return true;
+             });
+
+             const grouped = {};
+             dataSource.forEach(item => {
+                 const val = parseNumber(item[valKey]);
+                 const key = item['รหัสรถ'];
+                 if (key) grouped[key] = (grouped[key] || 0) + val;
+             });
+
+             const sorted = Object.entries(grouped).sort(([,a], [,b]) => b - a).slice(0, 10);
+             const labels = sorted.map(k => k[0]);
+             const data = sorted.map(k => k[1]);
+
+             chartState.rankInstance = new Chart(ctx, {
+                 type: 'bar', // Can change to 'bar' with indexAxis: 'y' for horizontal
+                 data: { labels: labels, datasets: [{ label: 'Top 10', data: data, backgroundColor: color, borderRadius: 2 }] },
+                 options: { 
+                     indexAxis: 'y', // Horizontal bar for better name readability
+                     responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, 
+                     scales: { x: { grid: { color: getCssVar('--chart-grid') }, ticks: { color: getCssVar('--text-muted'), font: {size: 9} } }, y: { grid: { display: false }, ticks: { color: getCssVar('--text-main'), font: { weight: 'bold' } } } },
+                     onClick: (e, activeEls) => { if(activeEls.length > 0) handleRankClick(activeEls[0].index, labels); },
                      onHover: (e, els) => e.native.target.style.cursor = els[0] ? 'pointer' : 'default'
                  }
              });
