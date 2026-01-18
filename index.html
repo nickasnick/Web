@@ -14,6 +14,9 @@
     <!-- CSV Parser: PapaParse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     
+    <!-- QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
     <!-- Icons: FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
@@ -207,6 +210,18 @@
             transition: transform 0.3s;
         }
         [data-theme="light"] .theme-toggle-circle { transform: translateX(24px); }
+        
+        /* QR Code Scanner Styles */
+        #qr-reader {
+            width: 100%;
+            border: none !important;
+        }
+        #qr-reader__scan_region {
+            background: transparent !important;
+        }
+        #qr-reader__dashboard_section_csr span {
+             display: none; /* Hide default 'scan' text */
+        }
 
     </style>
 </head>
@@ -249,6 +264,9 @@
                         </select>
                         <i class="fas fa-filter absolute right-3 top-2.5 text-[var(--text-muted)] pointer-events-none"></i>
                     </div>
+                    <button id="btn-print-qr" onclick="printQRCodes()" class="construct-btn flex items-center gap-2 whitespace-nowrap hidden">
+                        <i class="fas fa-print"></i> พิมพ์ QR
+                    </button>
                 </div>
             </div>
 
@@ -257,6 +275,26 @@
             </div>
             <div class="px-4 py-3 bg-[var(--bg-panel)] border-t border-[var(--border-color)] text-right">
                 <button onclick="closeModal()" class="construct-btn px-4">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- QR Scanner Modal -->
+    <div id="qr-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="bg-[var(--safety-yellow)] text-white px-4 py-3 flex justify-between items-center">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                    <i class="fas fa-qrcode"></i> สแกน QR CODE
+                </h3>
+                <button onclick="closeQRModal()" class="text-white hover:text-black transition">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4 bg-[var(--bg-body)] flex justify-center">
+                <div id="qr-reader" style="width: 100%;"></div>
+            </div>
+            <div class="px-4 py-3 bg-[var(--bg-panel)] text-center text-[var(--text-muted)] text-xs">
+                ส่องกล้องไปที่ QR Code เพื่อดูข้อมูลเครื่องจักร
             </div>
         </div>
     </div>
@@ -312,6 +350,11 @@
                     </div>
                     <i class="fas fa-sun text-[var(--text-muted)] text-xs"></i>
                 </div>
+                
+                <!-- QR Scan Button -->
+                <button onclick="openQRScanner()" class="bg-[var(--bg-panel)] border border-[var(--border-color)] px-3 py-1.5 rounded flex items-center gap-2 shadow-sm hover:border-[var(--safety-yellow)] transition text-[var(--text-main)]">
+                    <i class="fas fa-qrcode text-[var(--safety-yellow)]"></i> สแกน QR
+                </button>
 
                 <div class="bg-[var(--bg-panel)] border border-[var(--border-color)] px-3 py-1.5 rounded flex items-center gap-2 shadow-sm">
                     <i class="fas fa-calendar-alt text-[var(--text-muted)]"></i>
@@ -334,30 +377,25 @@
                     <i class="fas fa-truck-monster text-[var(--status-blue)] opacity-50 text-xl"></i>
                 </div>
             </div>
-            
-            <!-- MERGED ALERTS CARD -->
-            <div class="industrial-card card-interactive status-red p-3 cursor-pointer" onclick="openModal('alerts')">
+            <div class="industrial-card card-interactive status-red p-3 cursor-pointer" onclick="openModal('expired')">
                 <div class="flex justify-between items-start">
                     <div>
-                        <div class="text-[var(--text-muted)] text-[10px] font-bold tracking-wider mb-1 flex items-center gap-1">
-                            <i class="fas fa-bell animate-pulse text-[var(--safety-orange)]"></i> แจ้งเตือน (ALERTS)
+                        <div class="text-[var(--status-red)] text-[10px] font-bold tracking-wider mb-1 flex items-center gap-1">
+                            <i class="fas fa-exclamation-circle animate-pulse"></i> ทะเบียนขาด
                         </div>
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-2 text-sm">
-                                <span class="w-2 h-2 rounded-full bg-[var(--status-red)]"></span>
-                                <span class="text-[var(--status-red)] font-bold">หมดอายุ:</span>
-                                <span class="font-black text-[var(--text-main)]" id="val-expired">-</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-sm">
-                                <span class="w-2 h-2 rounded-full bg-[var(--safety-yellow)]"></span>
-                                <span class="text-[var(--safety-yellow)] font-bold">ใกล้หมด:</span>
-                                <span class="font-black text-[var(--text-main)]" id="val-warning">-</span>
-                            </div>
-                        </div>
+                        <div class="text-2xl font-black text-[var(--status-red)] stat-value" id="total-expired">-</div>
                     </div>
                 </div>
             </div>
-            
+            <div class="industrial-card card-interactive status-yellow p-3 cursor-pointer" onclick="openModal('warning')">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-[var(--safety-yellow)] text-[10px] font-bold tracking-wider mb-1">ใกล้หมด (30 วัน)</div>
+                        <div class="text-2xl font-black text-[var(--safety-yellow)] stat-value" id="total-warning">-</div>
+                    </div>
+                    <i class="fas fa-bell text-[var(--safety-yellow)] opacity-50 text-xl"></i>
+                </div>
+            </div>
             <div id="card-fuel" class="industrial-card card-interactive status-green p-3 cursor-pointer card-selected" onclick="switchGraphMode('fuel')">
                 <div class="flex justify-between items-start">
                     <div class="overflow-hidden">
@@ -376,7 +414,7 @@
                     <i class="fas fa-wrench text-[var(--status-purple)] opacity-50 text-xl"></i>
                 </div>
             </div>
-             <!-- Project Card: Opens Modal Now -->
+             <!-- Project Card -->
             <div id="card-project" class="industrial-card card-interactive status-orange p-3 cursor-pointer" onclick="openModal('project')">
                 <div class="flex justify-between items-start">
                     <div class="overflow-hidden">
@@ -404,7 +442,7 @@
                 </div>
                 
                 <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                    <!-- Toggle Buttons (Always visible) -->
+                    <!-- Toggle Buttons -->
                     <div id="view-toggles" class="bg-[var(--bg-body)] p-0.5 border border-[var(--border-color)] rounded flex gap-0.5">
                         <button class="construct-btn toggle-btn text-xs active" id="btn-trend" data-view="trend">แนวโน้ม</button>
                         <button class="construct-btn toggle-btn text-xs" id="btn-top10" data-view="top10">10 อันดับ</button>
@@ -453,26 +491,22 @@
         let modalMaintChartInstance = null;
         let modalProjectChartInstance = null;
         let modalChartState = { view: 'year', year: null, month: null, machineCode: null }; 
+        let html5QrCode = null;
 
         // --- Helpers ---
         function parseDate(dateStr) {
             if (!dateStr) return null;
-            // 1. Try explicit dd/mm/yyyy parsing first
             if (dateStr.includes('/')) {
                 const parts = dateStr.split('/');
                 if (parts.length === 3) {
                     let day = parseInt(parts[0], 10);
                     let month = parseInt(parts[1], 10) - 1; 
                     let year = parseInt(parts[2], 10);
-                    
                     if (year > 2400) year -= 543;
-                    
                     const d = new Date(year, month, day);
                     if (!isNaN(d.getTime())) return d;
                 }
             }
-
-            // 2. Fallback
             let d = new Date(dateStr);
             if (!isNaN(d.getTime())) {
                  if (d.getFullYear() > 2400) { d.setFullYear(d.getFullYear() - 543); }
@@ -511,7 +545,7 @@
             }
         }
 
-        // --- Handle Chart Click (Defined First) ---
+        // --- Handle Chart Click ---
         function handleChartClick(index, labels) {
             if (chartState.subView === 'top10') {
                 const machineCode = labels[index];
@@ -521,27 +555,12 @@
                 showMachineDetails(machineCode, context);
                 return; 
             }
-
             if (chartState.view === 'year') {
                 if (chartState.subView === 'trend') { chartState.selectedYear = parseInt(labels[index]); chartState.view = 'month'; updateChart(); }
             } else if (chartState.view === 'month') {
                 if (chartState.subView === 'trend') { chartState.selectedMonth = index; chartState.view = 'day'; updateChart(); }
             } else if (chartState.view === 'day') {
                 if (chartState.subView === 'trend' && chartState.selectedMachine === 'ALL') { chartState.selectedDay = index + 1; chartState.view = 'single_day'; chartState.subView = 'top10'; updateChart(); }
-            }
-        }
-
-        // --- Reset Modal Chart (Defined Globally) ---
-        function resetModalChartToYear() {
-            modalChartState.view = 'year';
-            modalChartState.year = null;
-            modalChartState.month = null;
-            updateModalUI();
-
-            if (modalChartState.projectName) {
-                renderModalProjectChart();
-            } else {
-                updateModalCharts();
             }
         }
 
@@ -572,7 +591,6 @@
                     });
                 }
                 
-                // Fuel Mapping
                 appData.fuel.forEach(row => {
                     const valKey = Object.keys(row).find(k => k.includes('ปริมาณ') || k.includes('ลิตร') || k.toLowerCase().includes('fuel') || k.toLowerCase().includes('qty'));
                     if (valKey) row['ปริมาณ(ลิตร)'] = row[valKey];
@@ -686,11 +704,8 @@
                 if (data.expiredIssues.length > 0) appData.alerts.expired.push(data);
                 if (data.warningIssues.length > 0) appData.alerts.warning.push(data);
             });
-             const elExpiredVal = document.getElementById('val-expired');
-             if(elExpiredVal) elExpiredVal.innerText = appData.alerts.expired.length;
-
-             const elWarningVal = document.getElementById('val-warning');
-             if(elWarningVal) elWarningVal.innerText = appData.alerts.warning.length;
+            document.getElementById('total-expired').innerText = appData.alerts.expired.length;
+            document.getElementById('total-warning').innerText = appData.alerts.warning.length;
         }
 
         // --- Cleanup & Modal ---
@@ -699,60 +714,106 @@
             if (modalMaintChartInstance) { modalMaintChartInstance.destroy(); modalMaintChartInstance = null; }
             if (modalProjectChartInstance) { modalProjectChartInstance.destroy(); modalProjectChartInstance = null; }
         }
+        
+        // --- QR Code Logic ---
+        function printQRCodes() {
+             const printWindow = window.open('', '_blank');
+             let html = `<html><head><title>Print QR Codes</title>
+             <style>
+                body { font-family: sans-serif; }
+                .qr-grid { display: flex; flex-wrap: wrap; gap: 20px; }
+                .qr-item { border: 1px solid #ccc; padding: 10px; text-align: center; width: 150px; page-break-inside: avoid; }
+                .qr-code { width: 100px; height: 100px; }
+                .qr-label { font-weight: bold; margin-top: 5px; font-size: 14px; }
+                .qr-plate { font-size: 12px; color: #555; }
+             </style>
+             </head><body><div class="qr-grid">`;
+             
+             // Get displayed list or all
+             const type = lastModalType;
+             let sourceList = [];
+             if(type==='all') sourceList = appData.alerts.all.map(i=>i.info);
+             
+             if(sourceList.length === 0) sourceList = appData.machines;
 
-        // Tab Switching Logic for Alerts
-        function switchAlertTab(tabName) {
-            const btnExpired = document.getElementById('tab-expired');
-            const btnWarning = document.getElementById('tab-warning');
-            const activeClass = 'bg-[var(--safety-yellow)] text-black border-[var(--safety-orange)]';
-            const inactiveClass = 'bg-[var(--bg-panel)] text-[var(--text-muted)] border-[var(--border-color)]';
-            
-            if (tabName === 'expired') {
-                btnExpired.className = `construct-btn text-xs flex-1 ${activeClass}`;
-                btnWarning.className = `construct-btn text-xs flex-1 ${inactiveClass}`;
-                renderAlertList('expired');
-            } else {
-                btnExpired.className = `construct-btn text-xs flex-1 ${inactiveClass}`;
-                btnWarning.className = `construct-btn text-xs flex-1 ${activeClass}`;
-                renderAlertList('warning');
-            }
+             sourceList.forEach(m => {
+                 const code = m['รหัส'];
+                 const plate = m['ทะเบียน'] || '-';
+                 const url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${code}`;
+                 html += `
+                    <div class="qr-item">
+                        <img src="${url}" class="qr-code" />
+                        <div class="qr-label">${code}</div>
+                        <div class="qr-plate">${plate}</div>
+                    </div>
+                 `;
+             });
+             
+             html += `</div></body></html>`;
+             printWindow.document.write(html);
+             printWindow.document.close();
         }
         
-        function renderAlertList(type) {
-            const container = document.getElementById('alert-list-container');
-            let dataList = (type === 'expired') ? appData.alerts.expired : appData.alerts.warning;
-            let emptyText = (type === 'expired') ? 'ไม่มีรายการหมดอายุ' : 'ไม่มีรายการใกล้หมดอายุ';
+        function openQRScanner() {
+            const modal = document.getElementById('qr-modal');
+            modal.classList.add('show');
             
-            if (dataList.length === 0) {
-                container.innerHTML = `<div class="text-center text-[var(--text-muted)] py-8 font-mono">${emptyText}</div>`;
-            } else {
-                const listHTML = dataList.map(item => generateCardHTML(item, type)).join('');
-                container.innerHTML = listHTML;
+            // Initialize Scanner
+            if (!html5QrCode) {
+                 html5QrCode = new Html5Qrcode("qr-reader");
+            }
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                (decodedText, decodedResult) => {
+                    // Success
+                    console.log(`Code matched = ${decodedText}`, decodedResult);
+                    closeQRModal(); // Stop scanning
+                    
+                    // Show Details
+                    // Check if machine exists
+                    const machine = appData.machines.find(m => m['รหัส'] === decodedText);
+                    if(machine) {
+                        showMachineDetails(decodedText);
+                    } else {
+                        alert(`ไม่พบข้อมูลเครื่องจักร: ${decodedText}`);
+                    }
+                },
+                (errorMessage) => {
+                    // parse error, ignore
+                }
+            ).catch(err => {
+                console.error("Error starting scanner", err);
+                document.getElementById('qr-reader').innerHTML = `<div class="text-red-500">ไม่สามารถเปิดกล้องได้ (โปรดตรวจสอบสิทธิ์หรือใช้ HTTPS)</div>`;
+            });
+        }
+        
+        function closeQRModal() {
+            const modal = document.getElementById('qr-modal');
+            modal.classList.remove('show');
+            if(html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then((ignore) => {
+                  // stopped
+                }).catch((err) => {
+                  // Stop failed, handle it.
+                });
             }
         }
 
+        // --- Open Modal ---
         function openModal(type) {
             cleanupModalCharts();
             lastModalType = type;
             const modal = document.getElementById('modal'), title = document.getElementById('modal-title'), body = document.getElementById('modal-body');
             body.innerHTML = '';
-            let headerText = '';
+            let headerText = '', emptyText = '';
             
-            document.getElementById('modal-filter-bar').classList.add('hidden'); // Hide by default
-
-            if (type === 'alerts') {
-                headerText = 'รายการแจ้งเตือน (ALERTS)';
-                body.innerHTML = `
-                    <div class="flex gap-2 mb-4 border-b border-[var(--border-color)] pb-2">
-                        <button id="tab-expired" onclick="switchAlertTab('expired')" class="construct-btn text-xs flex-1">หมดอายุ (${appData.alerts.expired.length})</button>
-                        <button id="tab-warning" onclick="switchAlertTab('warning')" class="construct-btn text-xs flex-1">ใกล้หมด (${appData.alerts.warning.length})</button>
-                    </div>
-                    <div id="alert-list-container"></div>
-                `;
-                setTimeout(() => switchAlertTab('expired'), 0);
-                
-            } else if (type === 'project') {
+            if (type === 'project') {
                 headerText = 'รายการโครงการทั้งหมด';
+                emptyText = 'ไม่พบข้อมูลโครงการ';
+                document.getElementById('modal-filter-bar').classList.add('hidden'); 
+                
                 const projStats = {};
                 const addStat = (p, fuel, cost) => {
                     if(!p) p = 'ไม่ระบุโครงการ';
@@ -764,17 +825,35 @@
                 appData.maintenance.forEach(m => addStat(m['โครงการ'], 0, parseNumber(m['ค่าซ่อมบำรุง'])));
 
                 const projects = Object.values(projStats).sort((a,b) => b.cost - a.cost); 
-                if (projects.length === 0) body.innerHTML = `<div class="text-center text-[var(--text-muted)] py-8 font-mono">ไม่พบข้อมูลโครงการ</div>`;
+                if (projects.length === 0) body.innerHTML = `<div class="text-center text-[var(--text-muted)] py-8 font-mono">${emptyText}</div>`;
                 else body.innerHTML = projects.map(p => generateProjectCardHTML(p)).join('');
                 
-            } else if (type === 'all') {
-                headerText = 'บัญชีเครื่องจักรทั้งหมด'; 
-                document.getElementById('modal-filter-bar').classList.remove('hidden');
-                document.getElementById('machine-search').value = '';
-                populateTypeFilter();
-                filterModalList();
             } else {
-                 body.innerHTML = "Unknown Type";
+                let dataList = [];
+                if (type === 'all') { headerText = 'บัญชีเครื่องจักรทั้งหมด'; dataList = appData.alerts.all; emptyText = 'ไม่พบข้อมูล'; }
+                else if (type === 'expired') { headerText = 'รายการแจ้งเตือนวิกฤต (หมดอายุ)'; dataList = appData.alerts.expired; emptyText = 'ไม่มีรายการหมดอายุ'; }
+                else if (type === 'warning') { headerText = 'คาดการณ์ซ่อมบำรุง (30 วัน)'; dataList = appData.alerts.warning; emptyText = 'ไม่มีการแจ้งเตือน'; }
+                
+                const filterBar = document.getElementById('modal-filter-bar');
+                if (type === 'all') {
+                    filterBar.classList.remove('hidden');
+                    document.getElementById('machine-search').value = '';
+                    // Show Print Button in All Machine View
+                    document.getElementById('btn-print-qr').classList.remove('hidden');
+                    populateTypeFilter();
+                } else {
+                    filterBar.classList.add('hidden');
+                    document.getElementById('btn-print-qr').classList.add('hidden');
+                }
+
+                if (dataList.length > 0 && type !== 'all') {
+                    const listHTML = dataList.map(item => generateCardHTML(item, type)).join('');
+                    body.innerHTML = listHTML;
+                } else if (type === 'all') {
+                    filterModalList(); 
+                } else {
+                    body.innerHTML = `<div class="text-center text-[var(--text-muted)] py-8 font-mono">${emptyText}</div>`;
+                }
             }
             title.innerText = headerText;
             modal.classList.add('show');
@@ -791,8 +870,7 @@
 
         function filterModalList() {
             const type = lastModalType;
-            if (type !== 'all') return;
-
+            if(type === 'project') return; 
             const body = document.getElementById('modal-body');
             let sourceList = appData.alerts.all;
             const searchText = document.getElementById('machine-search').value.toLowerCase().trim();
@@ -1047,6 +1125,19 @@
              const isRoot = modalChartState.view === 'year';
              const btnBack = document.getElementById('btn-modal-drill-back');
              if(btnBack) btnBack.classList.toggle('hidden', isRoot);
+        }
+        
+        function resetModalChartToYear() {
+            modalChartState.view = 'year';
+            modalChartState.year = null;
+            modalChartState.month = null;
+            updateModalUI();
+
+            if (modalChartState.projectName) {
+                renderModalProjectChart();
+            } else {
+                updateModalCharts();
+            }
         }
 
         // --- Sub-Modal: Daily List ---
