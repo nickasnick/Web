@@ -188,10 +188,14 @@
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
         }
 
-        /* Loading */
+        /* Loading - Enhanced */
         .loading-overlay { 
-            background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); 
+            background: rgba(255,255,255,0.8); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
         }
+        .animate-spin-reverse { animation: spin-reverse 3s linear infinite; }
+        @keyframes spin-reverse { to { transform: rotate(-360deg); } }
         
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
@@ -211,17 +215,37 @@
 <body class="antialiased text-sm">
 
     <!-- Loading Screen -->
-    <div id="loading" class="loading-overlay">
-        <div class="relative w-20 h-20 mb-4">
-            <div class="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
-            <div class="absolute inset-0 border-4 border-[var(--primary)] rounded-full border-t-transparent animate-spin"></div>
-            <i class="fas fa-snowflake absolute inset-0 flex items-center justify-center text-[var(--primary)] text-xl animate-pulse"></i>
+    <div id="loading" class="loading-overlay fixed inset-0 z-[999] flex flex-col items-center justify-center overflow-hidden">
+        <!-- Ambient Background Globs -->
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+
+        <!-- Loader Content -->
+        <div class="relative z-10 flex flex-col items-center">
+            <div class="relative w-24 h-24 mb-8">
+                <!-- Rings -->
+                <div class="absolute inset-0 rounded-full border-4 border-t-indigo-500 border-r-transparent border-b-purple-500 border-l-transparent animate-spin"></div>
+                <div class="absolute inset-3 rounded-full border-4 border-t-transparent border-r-blue-400 border-b-transparent border-l-cyan-400 animate-spin-reverse"></div>
+                <!-- Center Icon -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <i class="fas fa-cube text-3xl text-indigo-600/80"></i>
+                </div>
+            </div>
+            
+            <h2 class="text-3xl font-bold text-gray-800 tracking-wider mb-2" style="font-family: 'Kanit', sans-serif;">SMART FLEET</h2>
+            <div class="flex items-center gap-2 bg-white/50 px-4 py-2 rounded-full backdrop-blur-sm border border-white/60 shadow-sm">
+                <span class="flex gap-1">
+                    <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+                    <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                </span>
+                <span class="text-xs text-gray-500 font-medium ml-1">กำลังเชื่อมต่อฐานข้อมูล...</span>
+            </div>
+            
+            <button id="btn-retry" onclick="location.reload()" class="hidden mt-6 bg-red-500 text-white py-2 px-6 rounded-full shadow-lg hover:bg-red-600 transition hover:scale-105 active:scale-95">
+                <i class="fas fa-redo mr-2"></i> ลองใหม่อีกครั้ง
+            </button>
         </div>
-        <div class="text-xl font-bold text-[var(--text-main)]">กำลังโหลดข้อมูล...</div>
-        <div id="loading-text" class="text-[var(--text-muted)] mt-2 text-xs">เชื่อมต่อฐานข้อมูล...</div>
-        <button id="btn-retry" onclick="location.reload()" class="hidden mt-4 bg-red-500 text-white py-2 px-6 rounded-full shadow-lg hover:bg-red-600 transition">
-            ลองใหม่ (Retry)
-        </button>
     </div>
 
     <!-- Modal Popup -->
@@ -310,7 +334,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="container mx-auto px-4 py-8 max-w-[1400px]">
+    <div id="main-content" class="container mx-auto px-4 py-8 max-w-[1400px]" style="display: none;">
         
         <!-- Header Section -->
         <header class="mb-10 flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
@@ -831,10 +855,15 @@
             const codes = [...new Set(appData.machines.map(m => m['รหัส']).filter(c => c))].sort();
             codes.forEach(code => { const opt = document.createElement('option'); opt.value = code; opt.innerText = code; selector.appendChild(opt); });
 
+            // Reveal content first so charts have dimensions
+            document.getElementById('main-content').style.display = 'block'; 
+
             updateAllStats();
             updateChartColors();
             processAlerts();
-            setupFuelChart();
+            setupFuelChart(); // Renders charts
+            
+            // Hide loader
             document.getElementById('loading').style.opacity = '0';
             setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
         }
@@ -1645,18 +1674,28 @@
 
         // --- Main Chart ---
         function setupFuelChart() { 
-            document.getElementById('chart-back-btn').addEventListener('click', goBackLevel); 
-            document.getElementById('chart-home-btn').addEventListener('click', () => { 
-                chartState.selectedMachine = 'ALL'; 
-                chartState.selectedProject = 'ALL'; 
-                document.getElementById('machine-select').value = 'ALL'; 
-                resetChartToYear(); 
-                updateAllStats(); 
-            }); 
-            document.getElementById('machine-select').addEventListener('change', (e) => { 
-                chartState.selectedMachine = e.target.value; 
-                resetChartToYear(); 
-            }); 
+            const backBtn = document.getElementById('chart-back-btn');
+            if (backBtn) backBtn.addEventListener('click', goBackLevel); 
+            
+            const homeBtn = document.getElementById('chart-home-btn');
+            if (homeBtn) {
+                homeBtn.addEventListener('click', () => { 
+                    chartState.selectedMachine = 'ALL'; 
+                    chartState.selectedProject = 'ALL'; 
+                    document.getElementById('machine-select').value = 'ALL'; 
+                    resetChartToYear(); 
+                    updateAllStats(); 
+                }); 
+            }
+            
+            const machineSelect = document.getElementById('machine-select');
+            if (machineSelect) {
+                machineSelect.addEventListener('change', (e) => { 
+                    chartState.selectedMachine = e.target.value; 
+                    resetChartToYear(); 
+                }); 
+            }
+            
             updateChart(); 
         }
 
