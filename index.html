@@ -41,6 +41,14 @@
         body.no-scroll {
             overflow: hidden;
         }
+        /* Thumbnail Hover Effect */
+        .album-card:hover .album-overlay {
+            opacity: 1;
+        }
+        /* Lightbox Z-Index */
+        #lightbox-modal {
+            z-index: 100;
+        }
     </style>
 </head>
 <body class="font-sans text-gray-700 bg-gray-50 antialiased">
@@ -233,46 +241,11 @@
                             <li>ออก OJT พนักงานช่าง</li>
                         </ul>
                         
-                        <!-- Added Photo Gallery Buttons (Action: Open Modal) -->
+                        <!-- Single Gallery Button -->
                         <div class="mt-6 pt-4 border-t border-gray-100">
-                            <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                                <i class="fas fa-images text-secondary mr-2"></i> อัลบั้มรูปผลงาน (คลิกเพื่อดูรูป):
-                            </h4>
-                            <div class="flex flex-wrap gap-2">
-                                <button onclick="openGallery('1_year')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> 1 year
-                                </button>
-                                <button onclick="openGallery('2_year')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> 2 year
-                                </button>
-                                <button onclick="openGallery('newcomer')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> newcomer
-                                </button>
-                                <button onclick="openGallery('phrae_hospital')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> โรงพยาบาลแพร่
-                                </button>
-                                <button onclick="openGallery('chula_hospital')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> โรงพยาบาลจุฬาลงกรณ์
-                                </button>
-                                <button onclick="openGallery('pathum_hospital')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> โรงพยาบาลปทุมเวช
-                                </button>
-                                <button onclick="openGallery('praram9_hospital')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> โรงพยาบาลพระราม 9
-                                </button>
-                                <button onclick="openGallery('yuwaprasart')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> โรงพยาบาลยุวประสาทฯ
-                                </button>
-                                <button onclick="openGallery('audit_office')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> ตรวจเงินแผ่นดิน(สตง)
-                                </button>
-                                <button onclick="openGallery('mahachai2')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> รพ.มหาชัย2
-                                </button>
-                                <button onclick="openGallery('rama_bangplee')" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs sm:text-sm rounded-lg border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition flex items-center cursor-pointer">
-                                    <i class="far fa-images mr-1.5"></i> รพ.รามาบางพลี
-                                </button>
-                            </div>
+                            <button onclick="openGalleryOverview()" class="w-full sm:w-auto px-6 py-2.5 bg-primary text-white text-sm font-medium rounded-lg shadow hover:bg-blue-800 transition flex items-center justify-center transform hover:-translate-y-0.5">
+                                <i class="fas fa-images mr-2"></i> ดูอัลบั้มรูปผลงานทั้งหมด
+                            </button>
                         </div>
 
                     </div>
@@ -512,25 +485,30 @@
         </div>
     </footer>
 
-    <!-- Gallery Modal (Hidden by default) -->
+    <!-- Gallery Modal -->
     <div id="gallery-modal" class="fixed inset-0 z-[60] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <!-- Background overlay -->
         <div class="fixed inset-0 bg-black bg-opacity-90 transition-opacity" onclick="closeGallery()"></div>
 
         <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-5xl">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-6xl">
                 
                 <!-- Modal Header -->
                 <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4 border-b border-gray-200 flex justify-between items-center">
-                    <h3 class="text-xl font-bold text-gray-900" id="modal-title">Gallery</h3>
+                    <div class="flex items-center">
+                        <button id="back-btn" onclick="openGalleryOverview()" class="hidden mr-4 text-gray-500 hover:text-primary transition focus:outline-none">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h3 class="text-xl font-bold text-gray-900" id="modal-title">Photo Gallery</h3>
+                    </div>
                     <button type="button" onclick="closeGallery()" class="text-gray-400 hover:text-red-500 transition focus:outline-none">
                         <i class="fas fa-times text-2xl"></i>
                     </button>
                 </div>
 
-                <!-- Modal Body (Images go here) -->
+                <!-- Modal Body (Dynamic Content) -->
                 <div class="bg-gray-100 px-4 py-6 sm:px-6 h-[70vh] overflow-y-auto">
-                    <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         <!-- Dynamic Content will be injected here via JavaScript -->
                     </div>
                 </div>
@@ -541,6 +519,12 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Lightbox Modal (For viewing Large Images) -->
+    <div id="lightbox-modal" class="fixed inset-0 hidden bg-black bg-opacity-95 flex items-center justify-center p-4" onclick="closeLightbox()">
+        <button class="absolute top-4 right-4 text-white text-4xl focus:outline-none hover:text-gray-300">&times;</button>
+        <img id="lightbox-image" src="" alt="Large View" class="max-h-[90vh] max-w-[90vw] object-contain shadow-2xl rounded-sm">
     </div>
 
     <!-- Scripts -->
@@ -625,55 +609,97 @@
             }
         };
 
-        // Function to Open Gallery Modal
-        function openGallery(key) {
-            const data = galleryData[key];
-            if (!data) {
-                alert('ไม่พบข้อมูลรูปภาพสำหรับหมวดหมู่นี้');
-                return;
-            }
+        // ----------------------------------------------------
+        // GALLERY LOGIC
+        // ----------------------------------------------------
 
-            // Set Title
-            document.getElementById('modal-title').innerText = data.title;
-
-            // Generate Images
+        // 1. Open Overview (Show list of Folders)
+        function openGalleryOverview() {
             const grid = document.getElementById('gallery-grid');
-            grid.innerHTML = ''; // Clear old content
+            const title = document.getElementById('modal-title');
+            const backBtn = document.getElementById('back-btn');
 
-            if (data.images.length === 0) {
-                grid.innerHTML = '<p class="text-center text-gray-500 col-span-3 py-10">ยังไม่มีรูปภาพในหมวดหมู่นี้</p>';
-            } else {
-                data.images.forEach(filename => {
-                    // Create Image Element
-                    const imgContainer = document.createElement('div');
-                    imgContainer.className = 'rounded-lg overflow-hidden shadow-sm hover:shadow-md transition bg-white border border-gray-200';
-                    
-                    const img = document.createElement('img');
-                    // Encode URI to handle Thai characters and spaces in folder names
-                    const path = encodeURI(`${data.folder}/${filename}`);
-                    
-                    img.src = path;
-                    img.className = 'w-full h-auto object-cover hover:scale-105 transition duration-300';
-                    img.alt = data.title;
-                    img.loading = 'lazy'; // Lazy load for performance
+            title.innerText = 'อัลบั้มรูปผลงาน (Hitachi)';
+            backBtn.classList.add('hidden'); // Hide back button
+            grid.innerHTML = '';
 
-                    // Error handling
-                    img.onerror = function() { 
-                        this.onerror = null; 
-                        this.src = 'https://placehold.co/400x300?text=Image+Not+Found'; 
-                    };
+            // Loop through data to create Folder Thumbnails
+            for (const key in galleryData) {
+                const album = galleryData[key];
+                // Use the first image as the folder cover
+                const coverImage = encodeURI(`${album.folder}/${album.images[0]}`);
 
-                    imgContainer.appendChild(img);
-                    grid.appendChild(imgContainer);
-                });
+                const albumCard = document.createElement('div');
+                albumCard.className = 'album-card relative rounded-lg overflow-hidden shadow-sm bg-white cursor-pointer group aspect-square';
+                albumCard.onclick = () => openAlbum(key);
+
+                albumCard.innerHTML = `
+                    <img src="${coverImage}" onerror="this.src='https://placehold.co/300x300?text=No+Image'" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                    <div class="album-overlay absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                        <div class="text-center px-4">
+                            <i class="far fa-folder-open text-white text-3xl mb-2"></i>
+                            <h4 class="text-white font-bold text-lg">${album.title}</h4>
+                            <span class="text-gray-300 text-sm">${album.images.length} รูป</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4">
+                        <p class="text-white text-sm font-medium truncate">${album.title}</p>
+                    </div>
+                `;
+                grid.appendChild(albumCard);
             }
 
-            // Show Modal
             document.getElementById('gallery-modal').classList.remove('hidden');
             document.body.classList.add('no-scroll');
         }
 
-        // Function to Close Gallery Modal
+        // 2. Open Specific Album (Show images inside folder)
+        function openAlbum(key) {
+            const data = galleryData[key];
+            if (!data) return;
+
+            const grid = document.getElementById('gallery-grid');
+            const title = document.getElementById('modal-title');
+            const backBtn = document.getElementById('back-btn');
+
+            title.innerText = data.title;
+            backBtn.classList.remove('hidden'); // Show back button
+            grid.innerHTML = '';
+
+            if (data.images.length === 0) {
+                grid.innerHTML = '<p class="text-center text-gray-500 col-span-full py-10">ไม่มีรูปภาพในอัลบั้มนี้</p>';
+                return;
+            }
+
+            data.images.forEach(filename => {
+                const imgPath = encodeURI(`${data.folder}/${filename}`);
+                
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'rounded-lg overflow-hidden shadow-sm cursor-pointer border border-gray-200 group';
+                imgContainer.onclick = () => openLightbox(imgPath); // Click to open large image
+
+                imgContainer.innerHTML = `
+                    <div class="aspect-video overflow-hidden">
+                        <img src="${imgPath}" onerror="this.src='https://placehold.co/400x300?text=Image+Not+Found'" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                    </div>
+                `;
+                grid.appendChild(imgContainer);
+            });
+        }
+
+        // 3. Open Lightbox (Large Image)
+        function openLightbox(src) {
+            const lightbox = document.getElementById('lightbox-modal');
+            const lightboxImg = document.getElementById('lightbox-image');
+            lightboxImg.src = src;
+            lightbox.classList.remove('hidden');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox-modal').classList.add('hidden');
+        }
+
+        // Close Main Gallery Modal
         function closeGallery() {
             document.getElementById('gallery-modal').classList.add('hidden');
             document.body.classList.remove('no-scroll');
